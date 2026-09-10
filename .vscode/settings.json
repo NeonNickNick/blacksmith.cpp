@@ -1,0 +1,43 @@
+{
+    // ===== clangd extension =====
+    // clangd.path is intentionally NOT set — the extension auto-discovers
+    // the correct binary via @clangd/install at:
+    //   %APPDATA%/Code/User/globalStorage/llvm-vs-code-extensions.vscode-clangd/install/
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=iwyu",
+        "--completion-style=detailed",
+        "--function-arg-placeholders",
+        "--all-scopes-completion",
+        "--log=verbose"
+    ],
+
+    // ===== Disable Microsoft C/C++ extension to avoid conflicts =====
+    // clangd is now the primary language server; disable MS IntelliSense
+    "C_Cpp.intelliSenseEngine": "disabled",
+
+    // ===== Editor settings for C++ =====
+    "[cpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.formatOnSave": true
+    },
+    "[c]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.formatOnSave": true
+    },
+
+    // ===== Files =====
+    "files.associations": {
+        "*.hpp": "cpp",
+        "*.h": "cpp",
+        "*.cpp": "cpp",
+        "*.ipp": "cpp"
+    },
+
+    // ===== CMake =====
+    "cmake.configureOnOpen": false,
+    "files.exclude": {
+        "out/": true
+    }
+}

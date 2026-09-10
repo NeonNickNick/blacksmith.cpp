@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch blacksmith-client",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/out/build/x64-debug/src/blacksmith-client/blacksmith-client.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

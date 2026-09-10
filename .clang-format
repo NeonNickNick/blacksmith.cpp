@@ -1,0 +1,5 @@
+# .clang-format
+BasedOnStyle: LLVM   # 或其他基础风格，如 Google / Chromium / Mozilla
+IndentWidth: 4       # 缩进 4 格
+TabWidth: 4
+UseTab: Never        # 使用空格，而不是制表符

@@ -1,0 +1,73 @@
+# clangd configuration for blacksmith.cpp
+# Docs: https://clangd.llvm.org/config
+
+CompileFlags:
+  # Point to the CMake-generated compilation database
+  CompilationDatabase: out/build/x64-debug
+
+  # Emulate MSVC (cl.exe) so clangd understands /DWIN32, /EHsc, etc.
+  Add:
+    - --driver-mode=cl
+
+  # Remove flags that are MSVC-specific and not relevant to clangd's parser.
+  # These don't affect diagnostics but clean up the command line.
+  Remove:
+    - /nologo
+    - /FS
+    - /Zi
+    - /Fd*
+    - /Fo*
+
+Diagnostics:
+  # Strict include checking:
+  #   UnusedIncludes  — warn about #includes that aren't needed
+  #   MissingIncludes — warn about #includes that can't be found
+  #   IncludesWithAngleBrackets: "Regenerate" — use <> for system headers, "" for user headers
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
+
+  # Enable clang-tidy checks for additional diagnostics
+  ClangTidy:
+    Add:
+      - readability-*
+      - modernize-*
+      - bugprone-*
+      - performance-*
+      # Include-cleaner: warn when a symbol is used without directly
+      # including the header that provides it (catches transitive includes).
+      - misc-include-cleaner
+
+    CheckOptions:
+      # ---- Naming conventions (match CMakeLists.txt documented style) ----
+      # member: snake_case_ (trailing underscore)
+      readability-identifier-naming.MemberCase: snake_case
+      readability-identifier-naming.MemberSuffix: '_'
+      readability-identifier-naming.PrivateMemberCase: snake_case
+      readability-identifier-naming.PrivateMemberSuffix: '_'
+      readability-identifier-naming.PublicMemberCase: snake_case
+      readability-identifier-naming.PublicMemberSuffix: '_'
+      # constant and macro: UPPER_CASE
+      readability-identifier-naming.ConstantCase: UPPER_CASE
+      readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+
+    Remove:
+      # Too noisy / not matching project style
+      - modernize-use-trailing-return-type
+      - readability-identifier-length
+      - readability-magic-numbers
+      - cppcoreguidelines-avoid-magic-numbers
+      - readability-function-cognitive-complexity
+      - bugprone-easily-swappable-parameters
+
+Index:
+  # Re-index in the background for accurate cross-file results
+  Background: Build
+
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+  Designators: Yes
+
+Hover:
+  ShowAKA: Yes
