@@ -1,7 +1,6 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
-#include <skill-system/dsl.hpp>
 
 using namespace blacksmith_core::domain;
 namespace blacksmith_core::skill_system {
@@ -32,7 +31,16 @@ REGIST_BATCH(shield, LOGIC(RESOURCE(resource_type::IRON, 0.0F + (0.5F * N));),
                                   common_reduction,
                                   default_update}>(SELF);),
              N)
-
+REGIST_BATCH(thornshield,
+             LOGIC(RESOURCE(resource_type::IRON, 1.0F + (0.5F * N));),
+             LOGIC(write_defense<{defense_type::THORN_REDUCTION,
+                                  4 + N,
+                                  {},
+                                  thorn_reduction,
+                                  default_update}>(SELF);),
+             N)
+REGIST_BATCH(recovery, LOGIC(RESOURCE(resource_type::IRON, 0.5F + (0.5F * N))),
+             LOGIC(write_recovery<1 + N>(SELF);), N)
 END(COMMON)
 
 blacksmith_core::domain::profession_skill_set *common_skill_set() {

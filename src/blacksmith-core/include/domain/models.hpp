@@ -115,12 +115,9 @@ static_assert(analyzable_data<resource_data>);
 
 // 生命组件
 class health_component {
-  private:
+  public:
     int hp_ = 10;
     int mhp_ = 10;
-
-  public:
-    health_component() = default;
     void lose_hp(int loss);
     void gain_hp(int gain);
     void lose_mhp(int loss);
@@ -134,6 +131,7 @@ class defense_component {
   public:
     std::vector<defense_entity> defenses_;
     void add(const defense_entity &defense);
+    void round_pass();
 };
 //
 
@@ -171,12 +169,16 @@ class resource_component {
 // 回合上下文组件
 class turn_context_component {
     template <analyzable_data T> class context_unit {
-      private:
-        std::vector<T> datas_;
-
       public:
+        std::vector<T> datas_;
         template <typename... Args> void write(Args &&...args) {
             datas_.emplace_back(std::forward<Args>(args)...);
+        }
+        void round_pass() {
+            for (auto &data : datas_) {
+                data.clock_.round_pass();
+            }
+            std::erase_if(datas_, [](T &t) { return t.clock_.is_dead(); });
         }
     };
 
@@ -184,6 +186,7 @@ class turn_context_component {
     context_unit<attack_data> attack_context_;
     context_unit<defense_data> defense_context_;
     context_unit<resource_data> resource_context_;
+    void round_pass();
 };
 //
 
@@ -193,7 +196,7 @@ struct skill_context {
     std::string skill_name_;
     int param_;
     community &self_;
-    std::unique_ptr<skill_context> next_;
+    std::unique_ptr<skill_context> next_{nullptr};
 };
 //
 
@@ -202,7 +205,7 @@ using skill_check_func = bool (*)(const skill_context &);
 using skill_declare_func = void (*)(skill_context &);
 class profession_skill_set {
   public:
-    static constexpr int MAX_SKILL_COUNT = 10;
+    static constexpr int MAX_SKILL_COUNT = 50;
     profession_skill_set(
         const std::vector<std::tuple<std::string, skill_check_func,
                                      skill_declare_func>> &skills);
@@ -218,7 +221,7 @@ enum class check_result : std::uint8_t { SUCCESS, REJECTED, INVALID };
 // 职业组件
 class profession_component {
   public:
-    check_result check(const skill_context &context);
+    [[nodiscard]] check_result check(const skill_context &context) const;
     void declare(skill_context &context);
     void add_profession(const profession_skill_set *skill_set);
 
@@ -235,6 +238,7 @@ class body {
     resource_component resource_;
     turn_context_component turn_context_;
     profession_component profession_;
+    void print_info() const;
 };
 //
 

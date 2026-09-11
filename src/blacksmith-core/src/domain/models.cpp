@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <domain/models.hpp>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -47,6 +48,20 @@ bool health_component::is_dead() const { return hp_ <= 0; }
 // 防御组件
 void defense_component::add(const defense_entity &defense) {
     defenses_.push_back(defense);
+}
+void defense_component::round_pass() {
+    for (auto &defense : defenses_) {
+        defense.update_(defense);
+    }
+    std::erase_if(defenses_, [](auto &d) { return d.clock_.is_dead(); });
+}
+//
+
+// 回合上下文组件
+void turn_context_component::round_pass() {
+    attack_context_.round_pass();
+    defense_context_.round_pass();
+    resource_context_.round_pass();
 }
 //
 
@@ -137,6 +152,7 @@ profession_skill_set::profession_skill_set(
                                  skill_declare_func>> &skills) {
     int index = 0;
     for (const auto &skill : skills) {
+        assert(index < MAX_SKILL_COUNT);
         auto [name, check, declare] = skill;
         authorized_skills_.push_back(name);
         check_funcs_[index] = {name, check};
@@ -150,7 +166,7 @@ void profession_skill_set::disable_skill(const std::string &skill_name) {
 //
 
 // 职业组件
-check_result profession_component::check(const skill_context &context) {
+check_result profession_component::check(const skill_context &context) const {
     for (const auto &set : skill_sets_) {
         const auto NAME = context.skill_name_;
         if (std::ranges::find(set->authorized_skills_, NAME) !=
@@ -186,6 +202,13 @@ void profession_component::declare(skill_context &context) {
 void profession_component::add_profession(
     const profession_skill_set *skill_set) {
     skill_sets_.push_back(skill_set);
+}
+//
+
+// 玩家
+void body::print_info() const {
+    std::cout << '\n';
+    std::cout << "HP:" << health_.hp_ << "/" << health_.mhp_ << '\n';
 }
 //
 } // namespace blacksmith_core::domain

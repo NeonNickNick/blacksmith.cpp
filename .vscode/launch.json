@@ -6,6 +6,7 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/out/build/x64-debug/src/blacksmith-client/blacksmith-client.exe",
+            "preLaunchTask": "cmake: build",
             "args": [],
             "cwd": "${workspaceFolder}"
         }

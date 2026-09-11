@@ -5,7 +5,6 @@ add_library(blacksmith-core STATIC
 
     # ---- 头文件（IDE 可见 & 依赖追踪）----
     include/domain/models.hpp
-    include/skill-system/dsl.hpp
     include/skill-system/professions.hpp
     include/skill-system/dsl-macro.hpp
     include/domain/transformations.hpp
