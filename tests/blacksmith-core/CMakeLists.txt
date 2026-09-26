@@ -1,5 +1,4 @@
-# 测试可执行文件（手动列出）
-# 示例：
-#   add_executable(test-clap-round-clock test-clap-round-clock.cpp)
-#   target_link_libraries(test-clap-round-clock PRIVATE blacksmith-core)
-#   set_project_warnings(test-clap-round-clock)
+add_executable(test-blacksmith-zero test-blacksmith-zero.cpp)
+target_link_libraries(test-blacksmith-zero PRIVATE blacksmith-core)
+set_project_warnings(test-blacksmith-zero)
+add_test(NAME blacksmith-zero COMMAND test-blacksmith-zero)

@@ -1,11 +1,17 @@
+#include "battle-platform/standard-platform.hpp"
 #include "domain/models.hpp"
 #include "domain/transformations.hpp"
+#include <atomic>
+#include <blacksmith-master/blacksmith-ai.hpp>
 #include <charconv>
+#include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <ranges>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <vector>
 bool to_int(std::string_view sv, int &out) {
     const char *first = sv.data();
@@ -13,20 +19,52 @@ bool to_int(std::string_view sv, int &out) {
     auto [ptr, ec] = std::from_chars(first, last, out);
     return ec == std::errc() && ptr == last;
 }
-
 int main() {
-    blacksmith_core::domain::community player{};
-    blacksmith_core::domain::community enemy{};
-    blacksmith_core::domain::skill_context player_context{
-        .action_ = {.skill_name_ = "iron", .param_ = 0}, .self_ = &player};
-    blacksmith_core::domain::skill_context enemy_context{
-        .action_ = {.skill_name_ = "iron", .param_ = 0}, .self_ = &enemy};
+    std::atomic_bool enemy_begin{true};
+    std::atomic_bool player_begin{true};
+    std::mutex enemy_mutex;
+    std::condition_variable enemy_cv;
+    blacksmith_core::battle_platform::standard_pvp platform{};
+    platform.set_callback({[&]() {
+        player_begin = true;
+
+        enemy_begin = true;
+        enemy_cv.notify_one();
+    }});
+    blacksmith_core::domain::initialize(platform.player(), platform.enemy());
+    /*
+    auto round_pass = [&]() {
+        std::cout << "blacksmith-zero: " << enemy_context.action_.skill_name_
+                  << " " << enemy_context.action_.param_ << '\n';
+    };*/
+    std::jthread t([&]() {
+        blacksmith_core::blacksmith_master::blacksmith_zero ai{};
+        ai.init();
+
+        while (true) {
+            {
+                std::unique_lock lock(enemy_mutex);
+
+                enemy_cv.wait(lock, [&]() { return enemy_begin.load(); });
+
+                enemy_begin = false;
+            }
+
+            platform.submit_enemy_context(ai.choose_enemy_skill_impl(
+                platform.player(), platform.enemy()));
+        }
+    });
+
     std::cout << "Game start." << '\n';
-    blacksmith_core::domain::initialize(player, enemy);
-    auto get_context = [](community &com, skill_context &context) {
+
+    auto get_context = [](community &com) {
         while (true) {
             std::string skill_name;
             int param = 0;
+            skill_context context{.action_ = {.skill_name_ = "iron",
+                                              .param_ = 0,
+                                              .next_ = nullptr},
+                                  .self_ = &com};
             std::string input;
             std::getline(std::cin, input);
             std::vector<std::string> tokens;
@@ -65,16 +103,16 @@ int main() {
                 continue;
             case blacksmith_core::domain::check_result::SUCCESS:
                 std::cout << "Succeed." << '\n';
-                return;
+                return context;
             }
         }
     };
     while (true) {
-        get_context(player, player_context);
-        get_context(enemy, enemy_context);
-        declare(player, player_context, enemy, enemy_context);
-        judge(player, enemy);
-        print_info(player, enemy);
+        if (!player_begin) {
+            continue;
+        }
+        player_begin = false;
+        platform.submit_player_context(get_context(platform.player()));
     }
     return 0;
 }

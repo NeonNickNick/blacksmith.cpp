@@ -39,12 +39,12 @@ Diagnostics:
 
     CheckOptions:
       # ---- Naming conventions (match CMakeLists.txt documented style) ----
-      # member: snake_case_ (trailing underscore)
-      readability-identifier-naming.MemberCase: snake_case
+      # member: lower_case_ (trailing underscore)
+      readability-identifier-naming.MemberCase: lower_case
       readability-identifier-naming.MemberSuffix: '_'
-      readability-identifier-naming.PrivateMemberCase: snake_case
+      readability-identifier-naming.PrivateMemberCase: lower_case
       readability-identifier-naming.PrivateMemberSuffix: '_'
-      readability-identifier-naming.PublicMemberCase: snake_case
+      readability-identifier-naming.PublicMemberCase: lower_case
       readability-identifier-naming.PublicMemberSuffix: '_'
       # constant and macro: UPPER_CASE
       readability-identifier-naming.ConstantCase: UPPER_CASE
@@ -52,6 +52,7 @@ Diagnostics:
 
     Remove:
       # Too noisy / not matching project style
+      - modernize-use-designated-initializers
       - modernize-use-trailing-return-type
       - readability-identifier-length
       - readability-magic-numbers

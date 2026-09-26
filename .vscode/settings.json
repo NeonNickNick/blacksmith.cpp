@@ -4,11 +4,12 @@
     // the correct binary via @clangd/install at:
     //   %APPDATA%/Code/User/globalStorage/llvm-vs-code-extensions.vscode-clangd/install/
     "clangd.arguments": [
+        "--enable-config",
         "--background-index",
         "--clang-tidy",
         "--header-insertion=iwyu",
         "--completion-style=detailed",
-        "--function-arg-placeholders",
+        "--function-arg-placeholders=true",
         "--all-scopes-completion",
         "--log=verbose"
     ],

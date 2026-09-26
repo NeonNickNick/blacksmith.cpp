@@ -1,49 +1,70 @@
+#include "skill-system/professions.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
 
-using namespace blacksmith_core::domain;
-namespace blacksmith_core::skill_system {
 BEGIN_PROFESSION
 
-REGIST_C(iron, LOGIC_(TRUE),
-         LOGIC(write_resource<1.0F, resource_type::IRON>(SELF);))
+REGISTER_(iron, REQUIRE_(NOTHING), DSL_(),
+          DSL(write_resource<1.0F, IRON>(player);))
 
-REGIST(space, LOGIC(RESOURCE(resource_type::IRON, 3.0F)),
-       LOGIC(write_resource<1.0F, resource_type::SPACE>(SELF);))
+REGISTER(space, REQUIRE(RESOURCE(IRON, 3.0F)),
+         DSL(use_resource<3.0F, IRON>(player);),
+         DSL(write_resource<1.0F, SPACE>(player);))
 
-REGIST(time, LOGIC(RESOURCE(resource_type::IRON, 3.0F)),
-       LOGIC(write_resource<1.0F, resource_type::TIME>(SELF);))
+REGISTER(time, REQUIRE(RESOURCE(IRON, 3.0F)),
+         DSL(use_resource<3.0F, IRON>(player);),
+         DSL(write_resource<1.0F, TIME>(player);))
 
-REGIST(stick, LOGIC(RESOURCE(resource_type::IRON, 0.5F);),
-       LOGIC(write_attack<1, attack_type::PHYSICAL>(SELF);));
+REGISTER(stick, REQUIRE(RESOURCE(IRON, 0.5F);),
+         DSL(use_resource<0.5F, IRON>(player);),
+         DSL(write_attack<1, PHYSICAL>(player);));
 
-REGIST(drill, LOGIC(RESOURCE(resource_type::IRON, 1.5F);),
-       LOGIC(write_attack<3, attack_type::PHYSICAL>(SELF);));
+REGISTER(drill, REQUIRE(RESOURCE(IRON, 1.5F);),
+         DSL(use_resource<1.5F, IRON>(player);),
+         DSL(write_attack<3, PHYSICAL>(player);));
 
-REGIST(slash, LOGIC(RESOURCE(resource_type::IRON, 2.5F);),
-       LOGIC(write_attack<5, attack_type::PHYSICAL>(SELF);));
+REGISTER(slash, REQUIRE(RESOURCE(IRON, 2.5F);),
+         DSL(use_resource<2.5F, IRON>(player);),
+         DSL(write_attack<5, PHYSICAL>(player);));
 
-REGIST_BATCH(shield, LOGIC(RESOURCE(resource_type::IRON, 0.0F + (0.5F * N));),
-             LOGIC(write_defense<{defense_type::COMMON_REDUCTION,
+REGISTER_BATCH(shield, REQUIRE(RESOURCE(IRON, 0.0F + (0.5F * N));),
+               DSL(use_resource<0.0F + (0.5F * N), IRON>(player);),
+               DSL(write_defense<{defense_type::COMMON_REDUCTION,
                                   2 + N,
                                   {},
-                                  common_reduction,
-                                  default_update}>(SELF);),
-             N)
-REGIST_BATCH(thornshield,
-             LOGIC(RESOURCE(resource_type::IRON, 1.0F + (0.5F * N));),
-             LOGIC(write_defense<{defense_type::THORN_REDUCTION,
+                                  default_reduction,
+                                  default_update}>(player);))
+REGISTER_BATCH(thornshield, REQUIRE(RESOURCE(IRON, 1.0F + (0.5F * N));),
+               DSL(use_resource<1.0F + (0.5F * N), IRON>(player);),
+               DSL(write_defense<{defense_type::THORN_REDUCTION,
                                   4 + N,
                                   {},
                                   thorn_reduction,
-                                  default_update}>(SELF);),
-             N)
-REGIST_BATCH(recovery, LOGIC(RESOURCE(resource_type::IRON, 0.5F + (0.5F * N))),
-             LOGIC(write_recovery<1 + N>(SELF);), N)
-END(COMMON)
+                                  default_update}>(player);))
+REGISTER_BATCH(recovery, REQUIRE(RESOURCE(IRON, 0.5F + (0.5F * N))),
+               DSL(use_resource<0.5F + (0.5F * N), IRON>(player);),
+               DSL(write_recovery<1 + N>(player);))
 
-blacksmith_core::domain::profession_skill_set *common_skill_set() {
-    return &COMMON_SKILL_SET;
-}
-} // namespace blacksmith_core::skill_system
+REGISTER(warlock, REQUIRE(RESOURCE(IRON, 1.0F)),
+         DSL(use_resource<1.0F, IRON>(player)),
+         DSL(write_profession<&get_warlock>(player);
+             write_free<[](community &player) {
+                 player.focus_.profession_.disable_skill("warlock");
+             }>(player)))
+
+REGISTER(cannon, REQUIRE(RESOURCE(IRON, 4.0F)),
+         DSL(use_resource<4.0F, IRON>(player)),
+         DSL(write_profession<&get_cannon>(player);
+             write_free<[](community &player) {
+                 player.focus_.profession_.disable_skill("cannon");
+             }>(player)))
+
+REGISTER(driver, REQUIRE(RESOURCE(IRON, 3.0F)),
+         DSL(use_resource<3.0F, IRON>(player)),
+         DSL(write_profession<&get_driver>(player);
+             write_free<[](community &player) {
+                 player.focus_.profession_.disable_skill("driver");
+             }>(player)))
+
+END(common)

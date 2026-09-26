@@ -26,7 +26,15 @@ enum class defense_type : std::uint8_t {
     REAL_ARMOR,
     COMMON_ARMOR
 };
-enum class resource_type : std::uint8_t { IRON, GOLD_IRON, SPACE, TIME, MAGIC };
+enum class resource_type : std::uint8_t {
+    IRON,
+    GOLD_IRON,
+    SPACE,
+    TIME,
+    MAGIC,
+    HP,
+    MHP
+};
 
 // 时钟：包含跨回合行为控制
 struct clap_round_clock {
@@ -43,7 +51,7 @@ static_assert(std::copy_constructible<clap_round_clock>);
 
 // 要求领域对象具有一个时钟
 template <typename T>
-concept analyzable_data = requires(T &t) {
+concept context_data = requires(T &t) {
     { t.clock_ } -> std::same_as<clap_round_clock &>;
 } && std::is_copy_constructible_v<T>;
 //
@@ -55,6 +63,8 @@ struct attack_data;
 struct defense_entity;
 struct defense_data;
 struct resource_data;
+struct effect_entity;
+struct effect_data;
 //
 
 // 攻击数据模型
@@ -68,7 +78,7 @@ struct attack_data {
     attack_execute_func executor_;
     int total_damage_;
 };
-static_assert(analyzable_data<attack_data>);
+static_assert(context_data<attack_data>);
 //
 
 // 防御实体数据模型，存放于玩家defense_component
@@ -86,7 +96,7 @@ struct defense_entity {
     bool can_merge_ = false;
     merge_func merge_ = nullptr;
 };
-static_assert(analyzable_data<defense_entity>);
+static_assert(context_data<defense_entity>);
 //
 
 // 防御数据模型
@@ -97,7 +107,7 @@ struct defense_data {
     defense_entity defense_;
     defense_execute_func executor_;
 };
-static_assert(analyzable_data<defense_data>);
+static_assert(context_data<defense_data>);
 //
 
 // 资源数据模型
@@ -110,7 +120,30 @@ struct resource_data {
     float power_;
     resource_execute_func executor_;
 };
-static_assert(analyzable_data<resource_data>);
+static_assert(context_data<resource_data>);
+//
+
+// 效果实体数据模型，存放于玩家defense_component
+using take_effect_func = void (*)(community &, community &, effect_entity &);
+struct effect_entity {
+  public:
+    clap_round_clock clock_;
+    take_effect_func take_effect_{};
+};
+static_assert(context_data<effect_entity>);
+//
+
+// 效果数据模型
+enum class effect_target_type : uint8_t { SELF, ENEMY };
+using effect_execute_func = void (*)(community &, community &, effect_data &);
+struct effect_data {
+  public:
+    clap_round_clock clock_;
+    effect_target_type type_;
+    effect_entity effect_;
+    effect_execute_func executor_;
+};
+static_assert(context_data<effect_data>);
 //
 
 // 生命组件
@@ -135,16 +168,42 @@ class defense_component {
 };
 //
 
+// 效果组件
+class effect_component {
+  public:
+    std::vector<effect_entity> effects_;
+    void add(const effect_entity &effect);
+    void round_pass();
+};
+//
+
+// 标记实体
+struct mark_entity {
+  public:
+    clap_round_clock clock_;
+    std::string name_;
+};
+static_assert(context_data<mark_entity>);
+//
+
+// 标记组件
+class mark_component {
+  public:
+    std::vector<mark_entity> marks_;
+    void add(const mark_entity &mark);
+    void round_pass();
+};
+//
+
 // 资源组件
 class resource_component {
     class resource_template {
-      private:
+      public:
         resource_type common_type_;
         resource_type gold_type_;
         float common_{0};
         float gold_{0};
 
-      public:
         resource_template() = delete;
         resource_template(resource_template &&other) = default;
         resource_template(resource_type common_type, resource_type gold_type);
@@ -159,20 +218,25 @@ class resource_component {
 
   public:
     resource_component();
+    resource_component(const resource_component &other);
+    resource_component &operator=(const resource_component &other);
+    resource_component(resource_component &&) noexcept = default;
+    resource_component &operator=(resource_component &&) noexcept = default;
     [[nodiscard]] bool check(resource_type type, float need,
                              bool if_common_only = false) const;
     void use(resource_type type, float need, bool if_common_only = false);
     void gain(resource_type type, float gain);
+    [[nodiscard]] float query(resource_type type) const;
 };
 //
 
 // 回合上下文组件
 class turn_context_component {
-    template <analyzable_data T> class context_unit {
+    template <context_data T> class context_unit {
       public:
         std::vector<T> datas_;
-        template <typename... Args> void write(Args &&...args) {
-            datas_.emplace_back(std::forward<Args>(args)...);
+        template <typename... Args> [[nodiscard]] T &write(Args &&...args) {
+            return datas_.emplace_back(std::forward<Args>(args)...);
         }
         void round_pass() {
             for (auto &data : datas_) {
@@ -186,17 +250,25 @@ class turn_context_component {
     context_unit<attack_data> attack_context_;
     context_unit<defense_data> defense_context_;
     context_unit<resource_data> resource_context_;
+    context_unit<effect_data> effect_context_;
     void round_pass();
 };
 //
 
+// 可复制的技能动作；搜索树节点与技能上下文共用这一值对象。
+struct skill_action {
+  public:
+    std::string skill_name_;
+    int param_ = 0;
+    std::unique_ptr<skill_action> next_{nullptr};
+    [[nodiscard]] skill_action copy() const;
+};
+
 // 技能上下文
 struct skill_context {
   public:
-    std::string skill_name_;
-    int param_;
-    community &self_;
-    std::unique_ptr<skill_context> next_{nullptr};
+    skill_action action_;
+    community *self_ = nullptr;
 };
 //
 
@@ -208,25 +280,31 @@ class profession_skill_set {
     static constexpr int MAX_SKILL_COUNT = 50;
     profession_skill_set(
         const std::vector<std::tuple<std::string, skill_check_func,
-                                     skill_declare_func>> &skills);
-    void disable_skill(const std::string &skill_name);
+                                     skill_declare_func>> &skills,
+        skill_check_func passive_check, skill_declare_func passive_declare);
     std::vector<std::string> authorized_skills_;
     std::array<std::pair<std::string, skill_check_func>, MAX_SKILL_COUNT>
         check_funcs_{};
     std::array<std::pair<std::string, skill_declare_func>, MAX_SKILL_COUNT>
         declare_funcs_{};
+    std::pair<skill_check_func, skill_declare_func> passive_func_{nullptr,
+                                                                  nullptr};
 };
 //
 enum class check_result : std::uint8_t { SUCCESS, REJECTED, INVALID };
 // 职业组件
 class profession_component {
   public:
+    void invoke_passive(skill_context &context);
     [[nodiscard]] check_result check(const skill_context &context) const;
     void declare(skill_context &context);
     void add_profession(const profession_skill_set *skill_set);
+    void disable_skill(const std::string &skill_name);
+    [[nodiscard]] const std::vector<std::string> &available_skills() const;
 
   private:
     std::vector<const profession_skill_set *> skill_sets_;
+    std::vector<std::string> authorized_skills_;
 };
 //
 
@@ -236,6 +314,8 @@ class body {
     health_component health_;
     defense_component defense_;
     resource_component resource_;
+    effect_component effect_;
+    mark_component mark_;
     turn_context_component turn_context_;
     profession_component profession_;
     void print_info() const;
