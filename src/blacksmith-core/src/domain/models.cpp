@@ -38,6 +38,7 @@ void health_component::gain_hp(int gain) {
     hp_ = std::min(hp_, mhp_);
 }
 void health_component::lose_mhp(int loss) {
+    hp_ -= loss;
     mhp_ -= loss;
     hp_ = std::min(hp_, mhp_);
 }
