@@ -13,12 +13,12 @@ const std::string CHARGE = "charge";
 
 template <int power, attack_hook_set hookset, float ap_factor = 1.0F>
 void lancer_attack(community &player) {
-    modify<attack_data,
-           &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>,
-                         ap_factor>,
-           [](attack_data &data, community &player) {
-               data.power_ += 2 * take_mark(player, SKY_STRIKE);
-           }>(player);
+    modify<
+        attack_data,
+        &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>, ap_factor>,
+        [](attack_data &data, community &player) {
+            data.power_ += 2 * take_mark(player, SKY_STRIKE);
+        }>(player);
     if (take_mark(player, TYRANT_DESTRUCTION)) {
         write_recovery<2>(player);
     }

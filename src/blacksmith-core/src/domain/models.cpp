@@ -1,12 +1,12 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <domain/models.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -127,68 +127,43 @@ void resource_component::resource_template::gain(resource_type type,
         assert(false);
     }
 }
-resource_component::resource_component() {
-    auto iron = std::make_shared<resource_template>(resource_type::IRON,
-                                                    resource_type::GOLD_IRON);
-    resources_.emplace(resource_type::IRON, iron);
-    resources_.emplace(resource_type::GOLD_IRON, iron);
-    resources_.emplace(resource_type::SPACE,
-                       std::make_shared<resource_template>(
-                           resource_type::SPACE, resource_type::SPACE));
-    resources_.emplace(resource_type::TIME,
-                       std::make_shared<resource_template>(
-                           resource_type::TIME, resource_type::TIME));
-    resources_.emplace(resource_type::MAGIC,
-                       std::make_shared<resource_template>(
-                           resource_type::MAGIC, resource_type::MAGIC));
-}
-resource_component::resource_component(const resource_component &other)
-    : resource_component() {
-    for (const auto TYPE :
-         {resource_type::IRON, resource_type::GOLD_IRON, resource_type::SPACE,
-          resource_type::TIME, resource_type::MAGIC}) {
-        const auto SOURCE = other.resources_.at(TYPE);
-        auto destination = resources_.at(TYPE);
-        destination->common_ = SOURCE->common_;
-        destination->gold_ = SOURCE->gold_;
+resource_component::resource_component()
+    : templates_{
+          resource_template(resource_type::IRON, resource_type::GOLD_IRON),
+          resource_template(resource_type::SPACE, resource_type::SPACE),
+          resource_template(resource_type::TIME, resource_type::TIME),
+          resource_template(resource_type::MAGIC, resource_type::MAGIC)} {}
+
+std::size_t resource_component::template_index(resource_type type) {
+    switch (type) {
+    case resource_type::IRON:
+    case resource_type::GOLD_IRON:
+        return 0;
+    case resource_type::SPACE:
+        return 1;
+    case resource_type::TIME:
+        return 2;
+    case resource_type::MAGIC:
+        return 3;
+    default:
+        assert(false);
+        return 0;
     }
 }
-resource_component &
-resource_component::operator=(const resource_component &other) {
-    if (this != &other) {
-        resource_component copy(other);
-        resources_ = std::move(copy.resources_);
-    }
-    return *this;
-}
+
 bool resource_component::check(resource_type type, float need,
                                bool if_common_only) const {
-    auto it = resources_.find(type);
-    if (it != resources_.end()) {
-        return it->second->check(need, if_common_only);
-    }
-    assert(false);
-    return false;
+    return templates_[template_index(type)].check(need, if_common_only);
 }
 void resource_component::use(resource_type type, float need,
                              bool if_common_only) {
-    auto it = resources_.find(type);
-    if (it != resources_.end()) {
-        it->second->use(need, if_common_only);
-        return;
-    }
-    assert(false);
+    templates_[template_index(type)].use(need, if_common_only);
 }
 void resource_component::gain(resource_type type, float gain) {
-    auto it = resources_.find(type);
-    if (it != resources_.end()) {
-        it->second->gain(type, gain);
-        return;
-    }
-    assert(false);
+    templates_[template_index(type)].gain(type, gain);
 }
 float resource_component::query(resource_type type) const {
-    return resources_.at(type)->common_;
+    return templates_[template_index(type)].common_;
 }
 //
 
