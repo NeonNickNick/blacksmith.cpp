@@ -2,11 +2,11 @@
 
 #include <array>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -146,6 +146,14 @@ struct effect_data {
 static_assert(context_data<effect_data>);
 //
 
+// 回调
+struct callback_data {
+  public:
+    clap_round_clock clock_;
+    void (*callback_)(community &player, community &enemy);
+};
+//
+
 // 生命组件
 class health_component {
   public:
@@ -204,8 +212,6 @@ class resource_component {
         float common_{0};
         float gold_{0};
 
-        resource_template() = delete;
-        resource_template(resource_template &&other) = default;
         resource_template(resource_type common_type, resource_type gold_type);
         [[nodiscard]] bool check(float need, bool if_common_only = false) const;
         void use(float need, bool if_common_only = false);
@@ -213,15 +219,12 @@ class resource_component {
     };
 
   private:
-    std::unordered_map<resource_type, std::shared_ptr<resource_template>>
-        resources_;
+    static constexpr std::size_t RESOURCE_NUMS = 4;
+    std::array<resource_template, RESOURCE_NUMS> templates_;
+    [[nodiscard]] static std::size_t template_index(resource_type type);
 
   public:
     resource_component();
-    resource_component(const resource_component &other);
-    resource_component &operator=(const resource_component &other);
-    resource_component(resource_component &&) noexcept = default;
-    resource_component &operator=(resource_component &&) noexcept = default;
     [[nodiscard]] bool check(resource_type type, float need,
                              bool if_common_only = false) const;
     void use(resource_type type, float need, bool if_common_only = false);
