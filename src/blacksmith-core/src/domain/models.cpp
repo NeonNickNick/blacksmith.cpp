@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <domain/models.hpp>
 #include <iostream>
 #include <memory>
@@ -46,7 +47,10 @@ bool health_component::is_dead() const { return hp_ <= 0; }
 //
 
 // 防御组件
-void defense_component::add(const defense_entity &defense) {
+void defense_component::add(defense_entity &defense) {
+    if (try_merge(defense)) {
+        return;
+    }
     defenses_.push_back(defense);
 }
 void defense_component::round_pass() {
@@ -54,6 +58,18 @@ void defense_component::round_pass() {
         defense.update_(defense);
     }
     std::erase_if(defenses_, [](auto &d) { return d.clock_.is_dead(); });
+}
+bool defense_component::try_merge(defense_entity &defense) {
+    if (!defense.can_merge_) {
+        return false;
+    }
+    auto it = std::ranges::find_if(
+        defenses_, [&defense](const auto &d) { return d.id_ == defense.id_; });
+    if (it == defenses_.end()) {
+        return false;
+    }
+    it->merge_(*it, defense);
+    return true;
 }
 //
 
@@ -85,6 +101,7 @@ void turn_context_component::round_pass() {
     defense_context_.round_pass();
     resource_context_.round_pass();
     effect_context_.round_pass();
+    callback_context_.round_pass();
 }
 //
 

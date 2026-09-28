@@ -1,14 +1,13 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
-#include <string>
 
 BEGIN_PROFESSION
 namespace {
-const std::string CANNON_MARK = "cannon";
+const mark_id CANNON = mark_id::CANNON;
 template <int power, float ap_factor = 1.0F>
 void cannon_attack(community &player) {
-    const auto NUM = take_mark(player, CANNON_MARK);
+    const auto NUM = take_mark<CANNON>(player);
     if (NUM > 0) {
         write_attack<power + 1, PHYSICAL, {}, execute_attack, ap_factor>(
             player);
@@ -25,7 +24,7 @@ REGISTER(doublestrike, REQUIRE(RESOURCE(IRON, 2)),
 
 REGISTER(triplestrike, REQUIRE(RESOURCE(IRON, 3)),
          DSL(use_resource<3.0F, IRON>(player)),
-         DSL(cannon_attack<11>(player); write_mark(player, CANNON_MARK);
+         DSL(cannon_attack<11>(player); write_mark<CANNON>(player);
              write_resource<0.5F, IRON>(player)))
 
 REGISTER(apshell, REQUIRE(RESOURCE(IRON, 1)),

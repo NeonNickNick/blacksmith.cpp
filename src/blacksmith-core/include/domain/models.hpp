@@ -84,15 +84,18 @@ static_assert(context_data<attack_data>);
 // 防御实体数据模型，存放于玩家defense_component
 using defend_attack_func = void (*)(community &, community &, defense_entity &,
                                     attack_data &);
-using merge_func = void (*)(defense_entity &);
+using merge_func = void (*)(defense_entity &, defense_entity &);
 using update_func = void (*)(defense_entity &);
+enum class defense_id : uint8_t { DEFAULT, ARMOR12 };
+inline extern void default_update(defense_entity &defense);
 struct defense_entity {
   public:
+    defense_id id_{defense_id::DEFAULT};
     defense_type type_;
     int power_;
-    clap_round_clock clock_;
+    clap_round_clock clock_{};
     defend_attack_func defender_;
-    update_func update_;
+    update_func update_{default_update};
     bool can_merge_ = false;
     merge_func merge_ = nullptr;
 };
@@ -146,12 +149,46 @@ struct effect_data {
 static_assert(context_data<effect_data>);
 //
 
+// 标记实体
+enum class mark_id : uint8_t {
+    CANNON,
+
+    DRIVER,
+
+    SKY_STRIKE,
+    TYRANT_DESTRUCTION,
+    DRAGON_TOOTH,
+    TRIPLE_STAB,
+    CHARGE,
+    COUNTER_ATTACK,
+};
+struct mark_entity {
+  public:
+    clap_round_clock clock_;
+    mark_id id_;
+};
+static_assert(context_data<mark_entity>);
+//
+
 // 回调
+enum class callback_stage : uint8_t {
+
+    BEFORE_APPLY_EFFECT,
+    BEFORE_TAKE_EFFECT,
+    BEFORE_APPLY_DEFENSE,
+    BEFORE_CANCEL_ATTACK,
+    BEFORE_APPLY_ATTACK,
+    BEFORE_APPLY_RESOURCE,
+    BEFORE_ROUND_PASS,
+    SIZE
+};
 struct callback_data {
   public:
     clap_round_clock clock_;
+    callback_stage stage_;
     void (*callback_)(community &player, community &enemy);
 };
+static_assert(context_data<callback_data>);
 //
 
 // 生命组件
@@ -171,8 +208,11 @@ class health_component {
 class defense_component {
   public:
     std::vector<defense_entity> defenses_;
-    void add(const defense_entity &defense);
+    void add(defense_entity &defense);
     void round_pass();
+
+  private:
+    bool try_merge(defense_entity &defense);
 };
 //
 
@@ -183,15 +223,6 @@ class effect_component {
     void add(const effect_entity &effect);
     void round_pass();
 };
-//
-
-// 标记实体
-struct mark_entity {
-  public:
-    clap_round_clock clock_;
-    std::string name_;
-};
-static_assert(context_data<mark_entity>);
 //
 
 // 标记组件
@@ -209,8 +240,8 @@ class resource_component {
       public:
         resource_type common_type_;
         resource_type gold_type_;
-        float common_{0};
-        float gold_{0};
+        float common_{10};
+        float gold_{10};
 
         resource_template(resource_type common_type, resource_type gold_type);
         [[nodiscard]] bool check(float need, bool if_common_only = false) const;
@@ -254,6 +285,7 @@ class turn_context_component {
     context_unit<defense_data> defense_context_;
     context_unit<resource_data> resource_context_;
     context_unit<effect_data> effect_context_;
+    context_unit<callback_data> callback_context_;
     void round_pass();
 };
 //
@@ -329,7 +361,7 @@ class body {
 class community {
   public:
     body focus_;
-    bool is_player_;
+    std::string current_skill_name_;
 };
 //
 } // namespace blacksmith_core::domain

@@ -8,8 +8,8 @@
 #include <domain/models.hpp>
 #include <iostream>
 #include <skill-system/professions.hpp>
-#include <string>
 #include <utility>
+#include <vector>
 using namespace blacksmith_core::skill_system;
 namespace blacksmith_core::domain {
 // 辅助
@@ -143,26 +143,26 @@ effect_data &write_effect(community &player) {
 
 template <context_data T, T &(*getter_func)(community &),
           void (*modifier)(T &, community &)>
-void modify(community &player) {
-    modifier(getter_func(player), player);
+context_data auto &modify(community &player) {
+    auto &data = getter_func(player);
+    modifier(data, player);
+    return data;
 }
 
-template <clap_round_clock clock = {.is_infinite_ = true}>
-void write_mark(community &player, std::string mark_name) {
-    player.focus_.mark_.add({.clock_ = clock, .name_ = std::move(mark_name)});
+template <mark_id id, clap_round_clock clock = {.is_infinite_ = true}>
+void write_mark(community &player) {
+    player.focus_.mark_.add({.clock_ = clock, .id_ = id});
 }
 
-inline int take_mark(community &player, const std::string &mark_name) {
-    return static_cast<int>(
-        std::erase_if(player.focus_.mark_.marks_, [&mark_name](const auto &m) {
-            return m.name_ == mark_name;
-        }));
+template <mark_id id> inline int take_mark(community &player) {
+    return static_cast<int>(std::erase_if(
+        player.focus_.mark_.marks_, [](const auto &m) { return m.id_ == id; }));
 }
 
-inline int count_mark(const community &player, const std::string &mark_name) {
+template <mark_id id> inline int count_mark(const community &player) {
     return static_cast<int>(std::count_if(
         player.focus_.mark_.marks_.begin(), player.focus_.mark_.marks_.end(),
-        [&mark_name](const auto &m) { return m.name_ == mark_name; }));
+        [](const auto &m) { return m.id_ == id; }));
 }
 
 template <profession_func get_profession>
@@ -195,6 +195,13 @@ resource_data &write_resource(community &player) {
 template <int power> void write_recovery(community &player) {
     player.focus_.health_.gain_hp(power);
 }
+
+template <void (*callback)(community &, community &), clap_round_clock clock,
+          callback_stage stage>
+callback_data &write_callback(community &player) {
+    return player.focus_.turn_context_.callback_context_.write(clock, stage,
+                                                               callback);
+}
 //
 
 // 技能检查及声明
@@ -204,6 +211,8 @@ inline check_result check_skill(const community &player,
 }
 inline void declare(community &player, skill_context &player_context,
                     community &enemy, skill_context &enemy_context) {
+    player.current_skill_name_ = player_context.action_.skill_name_;
+    enemy.current_skill_name_ = enemy_context.action_.skill_name_;
     player.focus_.profession_.invoke_passive(player_context);
     enemy.focus_.profession_.invoke_passive(enemy_context);
     player.focus_.profession_.declare(player_context);
@@ -212,7 +221,29 @@ inline void declare(community &player, skill_context &player_context,
 //
 
 // 判定规则
-using transform_func = void(community &, community &);
+[[nodiscard]] inline std::array<
+    std::vector<std::pair<void (*)(community &, community &), bool>>,
+    static_cast<size_t>(callback_stage::SIZE)>
+collect_callback(community &player, community &enemy) {
+    std::array<std::vector<std::pair<void (*)(community &, community &), bool>>,
+               static_cast<size_t>(callback_stage::SIZE)>
+        callbacks;
+    for (const auto &data :
+         player.focus_.turn_context_.callback_context_.datas_) {
+        if (data.clock_.is_ringing()) {
+            callbacks[static_cast<size_t>(data.stage_)].emplace_back(
+                data.callback_, true);
+        }
+    }
+    for (const auto &data :
+         enemy.focus_.turn_context_.callback_context_.datas_) {
+        if (data.clock_.is_ringing()) {
+            callbacks[static_cast<size_t>(data.stage_)].emplace_back(
+                data.callback_, false);
+        }
+    }
+    return callbacks;
+}
 inline void cancel_attack(community &player, community &enemy) {
     auto &player_data = player.focus_.turn_context_.attack_context_.datas_;
     auto &enemy_data = enemy.focus_.turn_context_.attack_context_.datas_;
@@ -306,13 +337,48 @@ inline void round_pass(community &player, community &enemy) {
     apply(player);
     apply(enemy);
 }
+inline void apply_callback(
+    const std::array<
+        std::vector<std::pair<void (*)(community &, community &), bool>>,
+        static_cast<size_t>(callback_stage::SIZE)> &callbacks,
+    const callback_stage STAGE, community &player, community &enemy) {
+    for (const auto [callback, if_swap] :
+         callbacks[static_cast<size_t>(STAGE)]) {
+        if (if_swap) {
+            callback(player, enemy);
+        } else {
+            callback(enemy, player);
+        }
+    }
+}
 inline void judge(community &player, community &enemy) {
-    cancel_attack(player, enemy);
+    auto callbacks = collect_callback(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_APPLY_EFFECT, player,
+                   enemy);
     apply_effect(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_TAKE_EFFECT, player,
+                   enemy);
     take_effect(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_APPLY_DEFENSE, player,
+                   enemy);
     apply_defense(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_CANCEL_ATTACK, player,
+                   enemy);
+    cancel_attack(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_APPLY_ATTACK, player,
+                   enemy);
     apply_attack(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_APPLY_RESOURCE, player,
+                   enemy);
     apply_resource(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_ROUND_PASS, player, enemy);
     round_pass(player, enemy);
 }
 inline void print_info(const community &player, const community &enemy) {
@@ -344,7 +410,6 @@ inline void default_armor(community & /*player*/, community & /*enemy*/,
                           defense_entity &defense, attack_data &attack) {
     auto damage = cancel(defense.power_, attack.power_);
     attack.total_damage_ += damage;
-    attack.power_ -= damage;
 }
 //
 
@@ -352,10 +417,6 @@ inline void default_armor(community & /*player*/, community & /*enemy*/,
 inline void default_update(defense_entity &defense) {
     defense.clock_.round_pass();
 }
-//
-
-// merge_funcs
-
 //
 
 //

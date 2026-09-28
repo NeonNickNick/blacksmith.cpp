@@ -1,15 +1,14 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
-#include <string>
 
 BEGIN_PROFESSION
 namespace {
-const std::string DRIVER_MARK = "driver";
+const mark_id DRIVER = mark_id::DRIVER;
 template <int power> void driver_attack(community &player) {
     modify<attack_data, write_attack<power, PHYSICAL>,
            [](attack_data &data, community &player) {
-               data.power_ += take_mark(player, DRIVER_MARK);
+               data.power_ += take_mark<DRIVER>(player);
            }>(player);
 }
 } // namespace
@@ -32,13 +31,11 @@ REGISTER_BATCH(spaceattack, REQUIRE(RESOURCE(SPACE, N)),
 
 REGISTER(space2time, REQUIRE(RESOURCE(SPACE, 1)),
          DSL(use_resource<1.0F, SPACE>(player)),
-         DSL(write_resource<1.0F, TIME>(player);
-             write_mark(player, DRIVER_MARK)))
+         DSL(write_resource<1.0F, TIME>(player); write_mark<DRIVER>(player)))
 
 REGISTER(time2space, REQUIRE(RESOURCE(TIME, 1)),
          DSL(use_resource<1.0F, TIME>(player)),
-         DSL(write_resource<1.0F, SPACE>(player);
-             write_mark(player, DRIVER_MARK)))
+         DSL(write_resource<1.0F, SPACE>(player); write_mark<DRIVER>(player)))
 
 REGISTER_BATCH(
     spacebarrier, REQUIRE(1 <= N && N <= 5 && RESOURCE(IRON, N)),
