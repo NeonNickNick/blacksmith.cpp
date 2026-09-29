@@ -4,7 +4,7 @@
 
 BEGIN_PROFESSION
 namespace {
-const mark_id DRIVER = mark_id::DRIVER;
+constexpr mark_id DRIVER = mark_id::DRIVER;
 template <int power> void driver_attack(community &player) {
     modify<attack_data, write_attack<power, PHYSICAL>,
            [](attack_data &data, community &player) {

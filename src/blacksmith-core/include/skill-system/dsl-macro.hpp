@@ -141,8 +141,8 @@ inline constexpr int BATCH_SIZE = 5;
 #define RESOURCE(type, need) player.focus_.resource_.check(type, need)
 #define RESOURCE_COMMON_ONLY(type, need)                                       \
     player.focus_.resource_.check(type, need, true)
-#define HP(need) player.focus_.health_.hp_ > (need)
-#define MHP(need) player.focus_.health_.mhp_ > (need)
+#define HP(need) (player.focus_.health_.hp_ > (need))
+#define MHP(need) (player.focus_.health_.mhp_ > (need))
 #define R_HP resource_type::HP
 #define R_MHP resource_type::MHP
 #define IRON resource_type::IRON

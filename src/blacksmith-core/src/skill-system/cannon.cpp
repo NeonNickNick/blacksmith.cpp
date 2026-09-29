@@ -4,7 +4,7 @@
 
 BEGIN_PROFESSION
 namespace {
-const mark_id CANNON = mark_id::CANNON;
+constexpr mark_id CANNON = mark_id::CANNON;
 template <int power, float ap_factor = 1.0F>
 void cannon_attack(community &player) {
     const auto NUM = take_mark<CANNON>(player);

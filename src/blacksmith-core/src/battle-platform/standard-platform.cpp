@@ -2,15 +2,95 @@
 #include "domain/transformations.hpp"
 #include <battle-platform/standard-platform.hpp>
 #include <cassert>
+#include <charconv>
 #include <functional>
+#include <iostream>
 #include <mutex>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <system_error>
 #include <utility>
+#include <vector>
+
 namespace blacksmith_core::battle_platform {
+standard_pvp::standard_pvp(bool enable_info) {
+    enable_info_ = enable_info;
+    initialize(player_, enemy_);
+}
+void standard_pvp::reset() {
+    player_ = {};
+    enemy_ = {};
+    initialize(player_, enemy_);
+}
 void standard_pvp::set_callback(std::function<void()> &&callback) {
     callback_ = std::move(callback);
 }
 community &standard_pvp::player() { return player_; }
 community &standard_pvp::enemy() { return enemy_; }
+namespace {
+bool to_int(std::string_view sv, int &out) {
+    const char *first = sv.data();
+    const char *last = sv.data() + sv.size();
+    auto [ptr, ec] = std::from_chars(first, last, out);
+    return ec == std::errc() && ptr == last;
+}
+} // namespace
+skill_action standard_pvp::player_action() const {
+    return player_context_.action_.copy();
+}
+skill_action standard_pvp::enemy_action() const {
+    return enemy_context_.action_.copy();
+}
+skill_context standard_pvp::collect_player_context() {
+    while (true) {
+        std::string skill_name;
+        int param = 0;
+        skill_context context{
+            .action_ = {.skill_name_ = "iron", .param_ = 0, .next_ = nullptr},
+            .self_ = &player_};
+        std::string input;
+        std::getline(std::cin, input);
+        std::vector<std::string> tokens;
+        for (auto sub : input | std::views::split(' ')) {
+            tokens.emplace_back(sub.begin(), sub.end());
+        }
+        if (tokens.size() != 2) {
+            if (tokens.size() == 1) {
+                tokens.emplace_back("0");
+            } else {
+                std::cout << "Wrong format." << '\n';
+                continue;
+            }
+        }
+        skill_name = tokens[0];
+        if (!to_int(tokens[1], param)) {
+            std::cout << "Wrong format." << '\n';
+            continue;
+        }
+        if (param < 0) {
+            std::cout << "Wrong format." << '\n';
+            continue;
+        }
+        context.action_.skill_name_ = skill_name;
+        if (param != 0) {
+            context.action_.skill_name_ += tokens[1];
+        }
+        context.action_.param_ = param;
+        auto res = check_skill(player_, context);
+        switch (res) {
+        case blacksmith_core::domain::check_result::INVALID:
+            std::cout << "Invalid." << '\n';
+            continue;
+        case blacksmith_core::domain::check_result::REJECTED:
+            std::cout << "Rejected." << '\n';
+            continue;
+        case blacksmith_core::domain::check_result::SUCCESS:
+            std::cout << "Succeed." << '\n';
+            return context;
+        }
+    }
+}
 void standard_pvp::submit_player_context(skill_context &&context) {
     player_context_ = std::move(context);
     player_submitted_ = true;
@@ -20,6 +100,20 @@ void standard_pvp::submit_enemy_context(skill_context &&context) {
     enemy_context_ = std::move(context);
     enemy_submitted_ = true;
     try_pass_round();
+}
+standard_pvp::battle_result standard_pvp::result() const {
+    auto p = player_.focus_.health_.hp_ <= 0;
+    auto e = enemy_.focus_.health_.hp_ <= 0;
+    if (p && e) {
+        return standard_pvp::battle_result::DRAW;
+    }
+    if (p) {
+        return standard_pvp::battle_result::ENEMY_WIN;
+    }
+    if (e) {
+        return standard_pvp::battle_result::PLAYER_WIN;
+    }
+    return standard_pvp::battle_result::BATTLING;
 }
 void standard_pvp::try_pass_round() {
 
@@ -33,7 +127,9 @@ void standard_pvp::try_pass_round() {
     enemy_submitted_ = false;
     declare(player_, player_context_, enemy_, enemy_context_);
     judge(player_, enemy_);
-    print_info(player_, enemy_);
+    if (enable_info_) {
+        print_info(player_, enemy_);
+    }
 
     callback_();
 }

@@ -5,12 +5,12 @@
 
 BEGIN_PROFESSION
 namespace {
-const mark_id SKY_STRIKE = mark_id::SKY_STRIKE;
-const mark_id TYRANT_DESTRUCTION = mark_id::TYRANT_DESTRUCTION;
-const mark_id DRAGON_TOOTH = mark_id::DRAGON_TOOTH;
-const mark_id TRIPLE_STAB = mark_id::TRIPLE_STAB;
-const mark_id CHARGE = mark_id::CHARGE;
-const mark_id COUNTER_ATTACK = mark_id::COUNTER_ATTACK;
+constexpr mark_id SKY_STRIKE = mark_id::SKY_STRIKE;
+constexpr mark_id TYRANT_DESTRUCTION = mark_id::TYRANT_DESTRUCTION;
+constexpr mark_id DRAGON_TOOTH = mark_id::DRAGON_TOOTH;
+constexpr mark_id TRIPLE_STAB = mark_id::TRIPLE_STAB;
+constexpr mark_id CHARGE = mark_id::CHARGE;
+constexpr mark_id COUNTER_ATTACK = mark_id::COUNTER_ATTACK;
 
 template <int power, attack_hook_set hookset = {}, float ap_factor = 1.0F>
 attack_data &lancer_attack(community &player) {
@@ -92,7 +92,7 @@ REGISTER(risingdragon, REQUIRE([](const community &player) {
          DSL(if (count_mark<CHARGE>(player) == 0) {
              use_resource<4.0F, IRON>(player);
          }),
-         DSL(modify<attack_data, lancer_attack<9>,
+         DSL(modify<attack_data, &lancer_attack<9>,
                     [](attack_data &data, community &player) {
                         data.power_ += 4 * take_mark<CHARGE>(player);
                         data.type_ = MAGICAL;
@@ -116,7 +116,7 @@ REGISTER(charge, REQUIRE([](const community &player) {
                      return;
                  }
                  write_mark<COUNTER_ATTACK>(player);
-                 modify<attack_data, lancer_attack<9>,
+                 modify<attack_data, &lancer_attack<9>,
                         [](attack_data &data, community &player) {
                             data.power_ += 4 * take_mark<CHARGE>(player);
                             data.type_ = MAGICAL;

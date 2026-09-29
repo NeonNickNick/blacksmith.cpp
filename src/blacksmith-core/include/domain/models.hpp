@@ -161,6 +161,8 @@ enum class mark_id : uint8_t {
     TRIPLE_STAB,
     CHARGE,
     COUNTER_ATTACK,
+
+    BLOODSIGIL,
 };
 struct mark_entity {
   public:
@@ -240,8 +242,8 @@ class resource_component {
       public:
         resource_type common_type_;
         resource_type gold_type_;
-        float common_{10};
-        float gold_{10};
+        float common_{0};
+        float gold_{0};
 
         resource_template(resource_type common_type, resource_type gold_type);
         [[nodiscard]] bool check(float need, bool if_common_only = false) const;

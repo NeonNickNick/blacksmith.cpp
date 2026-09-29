@@ -196,6 +196,10 @@ template <int power> void write_recovery(community &player) {
     player.focus_.health_.gain_hp(power);
 }
 
+inline void write_recovery(int power, community &player) {
+    player.focus_.health_.gain_hp(power);
+}
+
 template <void (*callback)(community &, community &), clap_round_clock clock,
           callback_stage stage>
 callback_data &write_callback(community &player) {

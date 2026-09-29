@@ -1,4 +1,4 @@
-
+#pragma once
 #include <domain/models.hpp>
 #include <memory>
 #include <random>
