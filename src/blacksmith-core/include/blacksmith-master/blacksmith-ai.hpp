@@ -9,9 +9,9 @@ template <typename Derived> class blacksmith_ai {
   public:
     void init() { static_cast<Derived *>(this)->init_impl(); }
     skill_context choose_enemy_skill(const community &player,
-                                     const community &enemy) {
-        return static_cast<Derived *>(this)->choose_enemy_skill_impl(player,
-                                                                     enemy);
+                                     const community &enemy, int round) {
+        return static_cast<Derived *>(this)->choose_enemy_skill_impl(
+            player, enemy, round);
     }
     float predict_win_rate(const community &player, const community &enemy) {
         return static_cast<Derived *>(this)->predict_win_rate_impl(player,
@@ -42,7 +42,6 @@ struct blacksmith_zero_params {
     float win_score_ = 10.0F;
     float lose_score_ = -10.0F;
     float temperature_coefficient_ = 0.03F;
-    float opponent_greedy_rate_ = 0.9F;
     int opponent_depth_ = 2;
     int mcts_iterations_ = 4000;
 };
@@ -50,7 +49,7 @@ class blacksmith_zero : public blacksmith_ai<blacksmith_zero> {
   public:
     void init_impl();
     skill_context choose_enemy_skill_impl(const community &player,
-                                          const community &enemy);
+                                          const community &enemy, int round);
     float predict_win_rate_impl(const community &player,
                                 const community &enemy);
 
@@ -58,8 +57,7 @@ class blacksmith_zero : public blacksmith_ai<blacksmith_zero> {
     blacksmith_zero_params params_;
     std::vector<std::unique_ptr<mcts_node>>
     run_mcts(community &&player, community &&enemy, int iterations);
-    skill_action heuristic(community &player, community &enemy, bool is_player,
-                           int depth);
+    skill_action heuristic(community &com, community &other);
     skill_action
     sample_from_topk(std::vector<std::unique_ptr<mcts_node>> &children,
                      int round);

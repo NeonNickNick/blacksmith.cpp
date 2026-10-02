@@ -19,14 +19,29 @@
     using namespace blacksmith_core::domain;                                   \
     namespace blacksmith_core::skill_system {                                  \
     static std::vector<                                                        \
-        std::tuple<std::string, skill_check_func, skill_declare_func>>         \
+        std::tuple<skill, int, skill_check_func, skill_declare_func>>          \
         skills{};                                                              \
+    static std::vector<std::pair<std::string, skill>>                          \
+        partial_string_skill_mapping{};                                        \
     static skill_check_func passive_check_func = nullptr;                      \
     static skill_declare_func passive_declare_func = nullptr;
 
 #define END(profession_name)                                                   \
     static profession_skill_set profession_name##_skill_set{                   \
         skills, passive_check_func, passive_declare_func};                     \
+    static bool mapping_merged = []() {                                        \
+        auto &s_s_mapping = get_string_skill_mapping();                        \
+        auto &s_p_mapping = get_skill_profession_mapping();                    \
+        for (const auto &p : partial_string_skill_mapping) {                   \
+            s_p_mapping[static_cast<size_t>(p.second)] =                       \
+                &profession_name##_skill_set;                                  \
+        }                                                                      \
+        for (auto &&p : partial_string_skill_mapping) {                        \
+            s_s_mapping.emplace_back(std::move(p));                            \
+        }                                                                      \
+        return true;                                                           \
+    }();                                                                       \
+                                                                               \
     const blacksmith_core::domain::profession_skill_set *                      \
     get_##profession_name() {                                                  \
         return &profession_name##_skill_set;                                   \
@@ -69,7 +84,7 @@
         return true;                                                           \
     }();
 
-#define REGISTER(name, check, declare_use, declare_write)                      \
+#define REGISTER(name, skill_enum, check, declare_use, declare_write)          \
     CHECK(name) {                                                              \
         auto &p = *context.self_;                                              \
         return check                                                           \
@@ -79,23 +94,27 @@
         declare_use declare_write                                              \
     }                                                                          \
     static bool name##_registed = []() {                                       \
-        skills.emplace_back(#name, CHECK_NAME(name), DECLARE_NAME(name));      \
+        skills.emplace_back(skill_enum, 0, CHECK_NAME(name),                   \
+                            DECLARE_NAME(name));                               \
+        partial_string_skill_mapping.emplace_back(#name, skill_enum);          \
         return true;                                                           \
     }();
-#define REGISTER_(name, check, declare_use, declare_write)                     \
+#define REGISTER_(name, skill_enum, check, declare_use, declare_write)         \
     CHECK_(name){return check} DECLARE(name) {                                 \
         auto &p = *context.self_;                                              \
         declare_use declare_write                                              \
     }                                                                          \
     static bool name##_registed = []() {                                       \
-        skills.emplace_back(#name, CHECK_NAME(name), DECLARE_NAME(name));      \
+        skills.emplace_back(skill_enum, 0, CHECK_NAME(name),                   \
+                            DECLARE_NAME(name));                               \
+        partial_string_skill_mapping.emplace_back(#name, skill_enum);          \
         return true;                                                           \
     }();
 
 inline constexpr int BATCH_SIZE = 5;
 
 // NOLINTBEGIN
-#define REGISTER_BATCH(name, check, declare_use, declare_write)                \
+#define REGISTER_BATCH(name, skill_enum, check, declare_use, declare_write)    \
     TMP_CHECK(name, N) {                                                       \
         auto &p = *context.self_;                                              \
         return check                                                           \
@@ -106,13 +125,13 @@ inline constexpr int BATCH_SIZE = 5;
     }                                                                          \
     template <int N> bool name##_regist() {                                    \
         if constexpr (N == 0) {                                                \
-            skills.emplace_back(#name, TMP_CHECK_NAME(name, 0),                \
+            skills.emplace_back(skill_enum, 0, TMP_CHECK_NAME(name, 0),        \
                                 TMP_DECLARE_NAME(name, 0));                    \
+            partial_string_skill_mapping.emplace_back(#name, skill_enum);      \
             return true;                                                       \
         } else {                                                               \
             name##_regist<N - 1>();                                            \
-            skills.emplace_back(#name + std::to_string(N),                     \
-                                TMP_CHECK_NAME(name, N),                       \
+            skills.emplace_back(skill_enum, N, TMP_CHECK_NAME(name, N),        \
                                 TMP_DECLARE_NAME(name, N));                    \
             return true;                                                       \
         }                                                                      \
@@ -145,11 +164,11 @@ inline constexpr int BATCH_SIZE = 5;
 #define MHP(need) (player.focus_.health_.mhp_ > (need))
 #define R_HP resource_type::HP
 #define R_MHP resource_type::MHP
-#define IRON resource_type::IRON
-#define GOLD_IRON resource_type::GOLD_IRON
-#define SPACE resource_type::SPACE
-#define TIME resource_type::TIME
-#define MAGIC resource_type::MAGIC
+#define R_IRON resource_type::IRON
+#define R_GOLD_IRON resource_type::GOLD_IRON
+#define R_SPACE resource_type::SPACE
+#define R_TIME resource_type::TIME
+#define R_MAGIC resource_type::MAGIC
 
 #define PHYSICAL attack_type::PHYSICAL
 #define MAGICAL attack_type::MAGICAL

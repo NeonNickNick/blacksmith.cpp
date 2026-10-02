@@ -215,8 +215,8 @@ inline check_result check_skill(const community &player,
 }
 inline void declare(community &player, skill_context &player_context,
                     community &enemy, skill_context &enemy_context) {
-    player.current_skill_name_ = player_context.action_.skill_name_;
-    enemy.current_skill_name_ = enemy_context.action_.skill_name_;
+    player.current_skill_ = player_context.action_.skill_;
+    enemy.current_skill_ = enemy_context.action_.skill_;
     player.focus_.profession_.invoke_passive(player_context);
     enemy.focus_.profession_.invoke_passive(enemy_context);
     player.focus_.profession_.declare(player_context);

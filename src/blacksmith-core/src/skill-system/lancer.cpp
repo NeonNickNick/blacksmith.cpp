@@ -1,3 +1,4 @@
+#include "skill-system/professions.hpp"
 #include <algorithm>
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
@@ -38,16 +39,16 @@ attack_data &lancer_attack(community &player) {
 }
 } // namespace
 
-REGISTER(skystrike, REQUIRE(RESOURCE(IRON, 1)),
-         DSL(use_resource<1.0F, IRON>(player)),
+REGISTER(skystrike, skill::SKY_STRIKE, REQUIRE(RESOURCE(R_IRON, 1)),
+         DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(lancer_attack<3, {.first_time_hit_armor_ =
                                    [](community &pc, community & /*ec*/,
                                       attack_data & /*atk*/) {
                                        write_mark<SKY_STRIKE>(pc);
                                    }}>(player)))
 
-REGISTER(tyrantdestruction, REQUIRE(RESOURCE(IRON, 1)),
-         DSL(use_resource<1.0F, IRON>(player)),
+REGISTER(tyrantdestruction, skill::TYRANT_DESTURCTION,
+         REQUIRE(RESOURCE(R_IRON, 1)), DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(lancer_attack<3,
                            {.first_time_hit_armor_ =
                                 [](community &pc, community & /*ec*/,
@@ -56,8 +57,8 @@ REGISTER(tyrantdestruction, REQUIRE(RESOURCE(IRON, 1)),
                                 }},
                            2.0F>(player)))
 
-REGISTER(dragontooth, REQUIRE(RESOURCE(IRON, 1)),
-         DSL(use_resource<1.0F, IRON>(player)),
+REGISTER(dragontooth, skill::DRAGON_TOOTH, REQUIRE(RESOURCE(R_IRON, 1)),
+         DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(lancer_attack<3, {.first_time_hit_armor_ =
                                    [](community &pc, community & /*ec*/,
                                       attack_data & /*atk*/) {
@@ -67,8 +68,8 @@ REGISTER(dragontooth, REQUIRE(RESOURCE(IRON, 1)),
                             .power_ = 3,
                             .defender_ = default_reduction}>(player);))
 
-REGISTER(triplestab, REQUIRE(RESOURCE(IRON, 1)),
-         DSL(use_resource<1.0F, IRON>(player)),
+REGISTER(triplestab, skill::TRIPLE_STAB, REQUIRE(RESOURCE(R_IRON, 1)),
+         DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(lancer_attack<2, {.first_time_hit_armor_ =
                                    [](community &pc, community & /*ec*/,
                                       attack_data & /*atk*/) {
@@ -85,12 +86,13 @@ REGISTER(triplestab, REQUIRE(RESOURCE(IRON, 1)),
                                        write_mark<TRIPLE_STAB>(pc);
                                    }}>(player);))
 
-REGISTER(risingdragon, REQUIRE([](const community &player) {
+REGISTER(risingdragon, skill::RISING_DRAGON,
+         REQUIRE([](const community &player) {
              auto cnt = count_mark<CHARGE>(player);
-             return cnt < 2 && RESOURCE(IRON, cnt > 0 ? 0.0F : 4.0F);
+             return cnt < 2 && RESOURCE(R_IRON, cnt > 0 ? 0.0F : 4.0F);
          }(player)),
          DSL(if (count_mark<CHARGE>(player) == 0) {
-             use_resource<4.0F, IRON>(player);
+             use_resource<4.0F, R_IRON>(player);
          }),
          DSL(modify<attack_data, &lancer_attack<9>,
                     [](attack_data &data, community &player) {
@@ -98,12 +100,12 @@ REGISTER(risingdragon, REQUIRE([](const community &player) {
                         data.type_ = MAGICAL;
                     }>(player)))
 
-REGISTER(charge, REQUIRE([](const community &player) {
+REGISTER(charge, skill::CHARGE, REQUIRE([](const community &player) {
              auto cnt = count_mark<CHARGE>(player);
-             return cnt < 2 && RESOURCE(IRON, cnt > 0 ? 0.0F : 4.0F);
+             return cnt < 2 && RESOURCE(R_IRON, cnt > 0 ? 0.0F : 4.0F);
          }(player)),
          DSL(if (count_mark<CHARGE>(player) == 0) {
-             use_resource<4.0F, IRON>(player);
+             use_resource<4.0F, R_IRON>(player);
          }),
          DSL(write_mark<CHARGE>(player);
              write_callback<[](community &player, community &enemy) {
@@ -124,7 +126,7 @@ REGISTER(charge, REQUIRE([](const community &player) {
              },
                             {}, callback_stage::BEFORE_CANCEL_ATTACK>(player);
              write_callback<[](community &player, community & /*enemy*/) {
-                 if (player.current_skill_name_ != "charge" &&
+                 if (player.current_skill_ != skill::CHARGE &&
                      take_mark<COUNTER_ATTACK>(player) <= 0) {
                      take_mark<CHARGE>(player);
                  }

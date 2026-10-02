@@ -1,10 +1,27 @@
 #pragma once
 #include "domain/models.hpp"
+#include <array>
+#include <cstddef>
+#include <string>
+#include <utility>
+#include <vector>
 #define DEF_SKILL_SET(name) const profession_skill_set *get_##name();
 #define SKILL_SET(name) get_##name()
 using namespace blacksmith_core::domain;
 using profession_func = const profession_skill_set *();
 namespace blacksmith_core::skill_system {
+inline std::vector<std::pair<std::string, skill>> &get_string_skill_mapping() {
+    static std::vector<std::pair<std::string, skill>> mapping{};
+    return mapping;
+}
+inline std::array<const profession_skill_set *,
+                  static_cast<size_t>(skill::SIZE)> &
+get_skill_profession_mapping() {
+    static std::array<const profession_skill_set *,
+                      static_cast<size_t>(skill::SIZE)>
+        mapping{};
+    return mapping;
+}
 DEF_SKILL_SET(common)
 DEF_SKILL_SET(warlock)
 DEF_SKILL_SET(cannon)

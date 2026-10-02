@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -293,15 +292,70 @@ class turn_context_component {
 //
 
 // 可复制的技能动作；搜索树节点与技能上下文共用这一值对象。
+enum class skill : uint8_t {
+    IRON,
+    STICK,
+    DRILL,
+    SLASH,
+    SHIELD,
+    THORN_SHIELD,
+    RECOVERY,
+    SPACE,
+    TIME,
+    REFLECT,
+    DELAY_PROTECTION,
+    ARMOR12,
+
+    WARLOCK,
+    ALCHEMY,
+    CANNON,
+    DRIVER,
+    LANCER,
+    BLOODSIGIL,
+
+    MAGIC,
+    MAGIC_ATTACK,
+    MAGIC_SHIELD,
+    SACRIFICE,
+    MUTE,
+
+    MIDASTOUCH,
+
+    STRIKE,
+    DOUBLE_STRIKE,
+    TRIPLE_STRIKE,
+    APSHELL,
+    CANNON_BARRIER,
+
+    SPACE_ATTACK,
+    TIME2SPACE,
+    SPACE2TIME,
+    SPACE_BARRIER,
+
+    SKY_STRIKE,
+    TYRANT_DESTURCTION,
+    DRAGON_TOOTH,
+    TRIPLE_STAB,
+    CHARGE,
+    RISING_DRAGON,
+
+    BLOOD_BLADE,
+    BLOOD_LUST,
+    BLOOD_RECOVERY,
+    BLOOD_RAGE,
+
+    SIZE,
+};
 struct skill_action {
   public:
-    std::string skill_name_;
+    skill skill_;
     int param_ = 0;
     std::unique_ptr<skill_action> next_{nullptr};
     [[nodiscard]] skill_action copy() const;
 };
 
 // 技能上下文
+
 struct skill_context {
   public:
     skill_action action_;
@@ -314,16 +368,13 @@ using skill_check_func = bool (*)(const skill_context &);
 using skill_declare_func = void (*)(skill_context &);
 class profession_skill_set {
   public:
-    static constexpr int MAX_SKILL_COUNT = 50;
     profession_skill_set(
-        const std::vector<std::tuple<std::string, skill_check_func,
+        const std::vector<std::tuple<skill, int, skill_check_func,
                                      skill_declare_func>> &skills,
         skill_check_func passive_check, skill_declare_func passive_declare);
-    std::vector<std::string> authorized_skills_;
-    std::array<std::pair<std::string, skill_check_func>, MAX_SKILL_COUNT>
-        check_funcs_{};
-    std::array<std::pair<std::string, skill_declare_func>, MAX_SKILL_COUNT>
-        declare_funcs_{};
+    std::vector<skill> authorized_skills_;
+    std::vector<std::tuple<skill, int, skill_check_func>> check_funcs_;
+    std::vector<std::tuple<skill, int, skill_declare_func>> declare_funcs_;
     std::pair<skill_check_func, skill_declare_func> passive_func_{nullptr,
                                                                   nullptr};
 };
@@ -336,12 +387,12 @@ class profession_component {
     [[nodiscard]] check_result check(const skill_context &context) const;
     void declare(skill_context &context);
     void add_profession(const profession_skill_set *skill_set);
-    void disable_skill(const std::string &skill_name);
-    [[nodiscard]] const std::vector<std::string> &available_skills() const;
+    void disable_skill(skill skill_name);
+    [[nodiscard]] const std::vector<skill> &authorized_skills() const;
 
   private:
-    std::vector<const profession_skill_set *> skill_sets_;
-    std::vector<std::string> authorized_skills_;
+    std::vector<skill> authorized_skills_;
+    std::vector<std::pair<skill_check_func, skill_declare_func>> passive_funcs_;
 };
 //
 
@@ -363,7 +414,7 @@ class body {
 class community {
   public:
     body focus_;
-    std::string current_skill_name_;
+    skill current_skill_;
 };
 //
 } // namespace blacksmith_core::domain

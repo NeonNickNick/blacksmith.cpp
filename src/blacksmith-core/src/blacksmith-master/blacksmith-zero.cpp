@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
-#include <limits>
 #include <memory>
 #include <numbers>
 #include <random>
@@ -30,10 +29,11 @@ mcts_node::mcts_node(community &&player, community &&enemy, mcts_node *parent,
 void blacksmith_zero::init_impl() {}
 
 skill_context blacksmith_zero::choose_enemy_skill_impl(const community &player,
-                                                       const community &enemy) {
+                                                       const community &enemy,
+                                                       int round) {
     auto children =
         run_mcts(community(player), community(enemy), params_.mcts_iterations_);
-    return to_context(sample_from_topk(children, 0),
+    return to_context(sample_from_topk(children, round),
                       const_cast<community &>(enemy));
 }
 
@@ -62,8 +62,7 @@ blacksmith_zero::run_mcts(community &&player, community &&enemy,
 
             community next_player = *node->player_;
             community next_enemy = *node->enemy_;
-            const auto PLAYER_ACTION =
-                heuristic(next_player, next_enemy, true, std::min(1, 0));
+            const auto PLAYER_ACTION = heuristic(next_player, next_enemy);
             play_round(next_player, next_enemy, PLAYER_ACTION, ACTION);
             auto next_actions = get_all_authorized(next_enemy);
             auto child = std::make_unique<mcts_node>(
@@ -84,9 +83,9 @@ blacksmith_zero::run_mcts(community &&player, community &&enemy,
             // an inexpensive, unbiased value estimate; applying the recursive
             // greedy policy here makes each rollout branch exponentially.
             const auto PLAYER_ACTION =
-                heuristic(simulation_player, simulation_enemy, true, 0);
+                heuristic(simulation_player, simulation_enemy);
             const auto ENEMY_ACTION =
-                heuristic(simulation_player, simulation_enemy, false, 0);
+                heuristic(simulation_enemy, simulation_player);
             play_round(simulation_player, simulation_enemy, PLAYER_ACTION,
                        ENEMY_ACTION);
         }
@@ -100,47 +99,20 @@ blacksmith_zero::run_mcts(community &&player, community &&enemy,
     return std::move(root.children_);
 }
 
-skill_action blacksmith_zero::heuristic(community &player, community &enemy,
-                                        bool is_player, int depth) {
-    community &actor = is_player ? player : enemy;
-    auto actions = get_all_authorized(actor);
+skill_action blacksmith_zero::heuristic(community &com, community & /*other*/) {
+    auto actions = get_all_authorized(com);
     if (actions.empty()) {
-        return {.skill_name_ = "iron"};
-    }
-    std::uniform_real_distribution<float> chance(0.0F, 1.0F);
-    if (depth <= 0 || chance(random_) >= params_.opponent_greedy_rate_) {
-        std::uniform_int_distribution<std::size_t> pick(0, actions.size() - 1);
-        return std::move(actions[pick(random_)]);
+        return {.skill_ = skill::IRON};
     }
 
-    float best_score = -std::numeric_limits<float>::infinity();
-    skill_action best = {.skill_name_ = "iron"};
-    for (auto &action : actions) {
-        community next_player = player;
-        community next_enemy = enemy;
-        const auto RESPONSE =
-            heuristic(next_player, next_enemy, !is_player, depth - 1);
-        if (is_player) {
-            play_round(next_player, next_enemy, action, RESPONSE);
-        } else {
-            play_round(next_player, next_enemy, RESPONSE, action);
-        }
-        float score = evaluate(next_player, next_enemy, 0);
-        if (is_player) {
-            score = -score;
-        }
-        if (score > best_score) {
-            best_score = score;
-            best = std::move(action);
-        }
-    }
-    return best;
+    std::uniform_int_distribution<std::size_t> pick(0, actions.size() - 1);
+    return std::move(actions[pick(random_)]);
 }
 
 skill_action blacksmith_zero::sample_from_topk(
     std::vector<std::unique_ptr<mcts_node>> &children, int round) {
     if (children.empty()) {
-        return {.skill_name_ = "iron"};
+        return {.skill_ = skill::IRON};
     }
     std::ranges::sort(children, [](const auto &left, const auto &right) {
         return left->wins_ / (left->visits_ + 1e-6F) >
@@ -215,15 +187,17 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
 std::vector<skill_action>
 blacksmith_zero::get_all_authorized(const community &com) {
     std::vector<skill_action> actions;
-    for (const auto &name : com.focus_.profession_.available_skills()) {
-        if (name == "stick" || name == "drill" || name == "recovery" ||
-            name == "shield" || name == "thornshield" || name == "mute") {
+    actions.reserve(8);
+    for (const auto &name : com.focus_.profession_.authorized_skills()) {
+        if (name == skill::STICK || name == skill::DRILL ||
+            name == skill::RECOVERY || name == skill::SHIELD ||
+            name == skill::THORN_SHIELD || name == skill::MUTE) {
             continue;
         }
-        skill_action ACTION{.skill_name_ = name, .param_ = 0};
+        skill_action ACTION{.skill_ = name, .param_ = 0};
         auto context = to_context(ACTION, const_cast<community &>(com));
         if (check_skill(com, context) == check_result::SUCCESS) {
-            actions.push_back({.skill_name_ = name, .param_ = 0});
+            actions.push_back({.skill_ = name, .param_ = 0});
         }
     }
     return actions;

@@ -5,41 +5,44 @@
 
 BEGIN_PROFESSION
 
-REGISTER_(iron, REQUIRE_(NOTHING), DSL_(),
-          DSL(write_resource<1.0F, IRON>(player);))
+REGISTER_(iron, skill::IRON, REQUIRE_(NOTHING), DSL_(),
+          DSL(write_resource<1.0F, R_IRON>(player);))
 
-REGISTER(space, REQUIRE(RESOURCE(IRON, 3.0F)),
-         DSL(use_resource<3.0F, IRON>(player);),
-         DSL(write_resource<1.0F, SPACE>(player);))
+REGISTER(space, skill::SPACE, REQUIRE(RESOURCE(R_IRON, 3.0F)),
+         DSL(use_resource<3.0F, R_IRON>(player);),
+         DSL(write_resource<1.0F, R_SPACE>(player);))
 
-REGISTER(time, REQUIRE(RESOURCE(IRON, 3.0F)),
-         DSL(use_resource<3.0F, IRON>(player);),
-         DSL(write_resource<1.0F, TIME>(player);))
+REGISTER(time, skill::TIME, REQUIRE(RESOURCE(R_IRON, 3.0F)),
+         DSL(use_resource<3.0F, R_IRON>(player);),
+         DSL(write_resource<1.0F, R_TIME>(player);))
 
-REGISTER(stick, REQUIRE(RESOURCE(IRON, 0.5F);),
-         DSL(use_resource<0.5F, IRON>(player);),
+REGISTER(stick, skill::STICK, REQUIRE(RESOURCE(R_IRON, 0.5F);),
+         DSL(use_resource<0.5F, R_IRON>(player);),
          DSL(write_attack<1, PHYSICAL>(player);));
 
-REGISTER(drill, REQUIRE(RESOURCE(IRON, 1.5F);),
-         DSL(use_resource<1.5F, IRON>(player);),
+REGISTER(drill, skill::DRILL, REQUIRE(RESOURCE(R_IRON, 1.5F);),
+         DSL(use_resource<1.5F, R_IRON>(player);),
          DSL(write_attack<3, PHYSICAL>(player);));
 
-REGISTER(slash, REQUIRE(RESOURCE(IRON, 2.5F);),
-         DSL(use_resource<2.5F, IRON>(player);),
+REGISTER(slash, skill::SLASH, REQUIRE(RESOURCE(R_IRON, 2.5F);),
+         DSL(use_resource<2.5F, R_IRON>(player);),
          DSL(write_attack<5, PHYSICAL>(player);));
 
-REGISTER_BATCH(shield, REQUIRE(RESOURCE(IRON, 0.0F + (0.5F * N));),
-               DSL(use_resource<0.0F + (0.5F * N), IRON>(player);),
+REGISTER_BATCH(shield, skill::SHIELD,
+               REQUIRE(RESOURCE(R_IRON, 0.0F + (0.5F * N));),
+               DSL(use_resource<0.0F + (0.5F * N), R_IRON>(player);),
                DSL(write_defense<{.type_ = defense_type::COMMON_REDUCTION,
                                   .power_ = 2 + N,
                                   .defender_ = default_reduction}>(player);))
-REGISTER_BATCH(thornshield, REQUIRE(RESOURCE(IRON, 1.0F + (0.5F * N));),
-               DSL(use_resource<1.0F + (0.5F * N), IRON>(player);),
+REGISTER_BATCH(thornshield, skill::THORN_SHIELD,
+               REQUIRE(RESOURCE(R_IRON, 1.0F + (0.5F * N));),
+               DSL(use_resource<1.0F + (0.5F * N), R_IRON>(player);),
                DSL(write_defense<{.type_ = defense_type::THORN_REDUCTION,
                                   .power_ = 4 + N,
                                   .defender_ = thorn_reduction}>(player);))
-REGISTER_BATCH(recovery, REQUIRE(RESOURCE(IRON, 0.5F + (0.5F * N))),
-               DSL(use_resource<0.5F + (0.5F * N), IRON>(player);),
+REGISTER_BATCH(recovery, skill::RECOVERY,
+               REQUIRE(RESOURCE(R_IRON, 0.5F + (0.5F * N))),
+               DSL(use_resource<0.5F + (0.5F * N), R_IRON>(player);),
                DSL(write_recovery<1 + N>(player);))
 
 namespace {
@@ -58,8 +61,8 @@ void reflect_helper(community &player, community &enemy) {
 } // namespace
 
 REGISTER(
-    reflect, REQUIRE(RESOURCE(SPACE, 2)),
-    DSL(use_resource<2.0F, SPACE>(player)),
+    reflect, skill::REFLECT, REQUIRE(RESOURCE(R_SPACE, 2)),
+    DSL(use_resource<2.0F, R_SPACE>(player)),
     DSL(write_callback<reflect_helper<[](community &com) -> auto & {
                            return com.focus_.turn_context_.effect_context_
                                .datas_;
@@ -92,8 +95,8 @@ void delay_protection_helper(community & /*player*/, community &enemy) {
 } // namespace
 
 REGISTER(
-    delayprotection, REQUIRE(RESOURCE(TIME, 2)),
-    DSL(use_resource<2.0F, TIME>(player)),
+    delayprotection, skill::DELAY_PROTECTION, REQUIRE(RESOURCE(R_TIME, 2)),
+    DSL(use_resource<2.0F, R_TIME>(player)),
     DSL(write_callback<delay_protection_helper<[](community &com) -> auto & {
                            return com.focus_.turn_context_.effect_context_
                                .datas_;
@@ -106,7 +109,8 @@ REGISTER(
                        {}, callback_stage::BEFORE_APPLY_ATTACK>(player)))
 
 REGISTER(
-    armor12, REQUIRE(RESOURCE(IRON, 7)), DSL(use_resource<7.0F, IRON>(player)),
+    armor12, skill::ARMOR12, REQUIRE(RESOURCE(R_IRON, 7)),
+    DSL(use_resource<7.0F, R_IRON>(player)),
     DSL(write_defense<{.id_ = defense_id::ARMOR12,
                        .type_ = defense_type::COMMON_ARMOR,
                        .power_ = 12,
@@ -117,32 +121,41 @@ REGISTER(
                            a.power_ = 12;
                        }}>(player)))
 
-REGISTER(warlock, REQUIRE(RESOURCE(IRON, 1.0F)),
-         DSL(use_resource<1.0F, IRON>(player)),
+REGISTER(warlock, skill::WARLOCK, REQUIRE(RESOURCE(R_IRON, 1.0F)),
+         DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(write_profession<&get_warlock>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill("warlock");
+                 player.focus_.profession_.disable_skill(skill::WARLOCK);
              }>(player)))
 
-REGISTER(cannon, REQUIRE(RESOURCE(IRON, 4.0F)),
-         DSL(use_resource<4.0F, IRON>(player)),
+REGISTER(cannon, skill::CANNON, REQUIRE(RESOURCE(R_IRON, 4.0F)),
+         DSL(use_resource<4.0F, R_IRON>(player)),
          DSL(write_profession<&get_cannon>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill("cannon");
+                 player.focus_.profession_.disable_skill(skill::CANNON);
              }>(player)))
 
-REGISTER(driver, REQUIRE(RESOURCE(IRON, 3.0F)),
-         DSL(use_resource<3.0F, IRON>(player)),
+REGISTER(driver, skill::DRIVER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
+         DSL(use_resource<3.0F, R_IRON>(player)),
          DSL(write_profession<&get_driver>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill("driver");
+                 player.focus_.profession_.disable_skill(skill::DRIVER);
              }>(player)))
 
-REGISTER(lancer, REQUIRE(RESOURCE(IRON, 3.0F)),
-         DSL(use_resource<3.0F, IRON>(player)),
+REGISTER(lancer, skill::LANCER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
+         DSL(use_resource<3.0F, R_IRON>(player)),
          DSL(write_profession<&get_lancer>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill("lancer");
+                 player.focus_.profession_.disable_skill(skill::LANCER);
              }>(player)))
 
+REGISTER(bloodsigil, skill::BLOODSIGIL, REQUIRE(RESOURCE(R_IRON, 7.0F)),
+         DSL(use_resource<7.0F, R_IRON>(player)),
+         DSL(write_profession<&get_lancer>(player);
+             write_free<[](community &player) {
+                 player.focus_.profession_.disable_skill(skill::BLOODSIGIL);
+                 player.focus_.profession_.disable_skill(skill::STICK);
+                 player.focus_.profession_.disable_skill(skill::DRILL);
+                 player.focus_.profession_.disable_skill(skill::SLASH);
+             }>(player)))
 END(common)

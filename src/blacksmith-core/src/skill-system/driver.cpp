@@ -1,3 +1,4 @@
+#include "skill-system/professions.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
@@ -22,24 +23,25 @@ PASSIVE_(REQUIRE_(NOTHING),
                     [](defense_data &data, community &player) {
                         data.defense_.power_ +=
                             2 * static_cast<int>(
-                                    player.focus_.resource_.query(TIME));
+                                    player.focus_.resource_.query(R_TIME));
                     }>(player)))
 
-REGISTER_BATCH(spaceattack, REQUIRE(RESOURCE(SPACE, N)),
-               DSL(use_resource<static_cast<float>(N), SPACE>(player)),
+REGISTER_BATCH(spaceattack, skill::SPACE_ATTACK, REQUIRE(RESOURCE(R_SPACE, N)),
+               DSL(use_resource<static_cast<float>(N), R_SPACE>(player)),
                DSL(driver_attack<12 * N>(player)))
 
-REGISTER(space2time, REQUIRE(RESOURCE(SPACE, 1)),
-         DSL(use_resource<1.0F, SPACE>(player)),
-         DSL(write_resource<1.0F, TIME>(player); write_mark<DRIVER>(player)))
+REGISTER(space2time, skill::SPACE2TIME, REQUIRE(RESOURCE(R_SPACE, 1)),
+         DSL(use_resource<1.0F, R_SPACE>(player)),
+         DSL(write_resource<1.0F, R_TIME>(player); write_mark<DRIVER>(player)))
 
-REGISTER(time2space, REQUIRE(RESOURCE(TIME, 1)),
-         DSL(use_resource<1.0F, TIME>(player)),
-         DSL(write_resource<1.0F, SPACE>(player); write_mark<DRIVER>(player)))
+REGISTER(time2space, skill::TIME2SPACE, REQUIRE(RESOURCE(R_TIME, 1)),
+         DSL(use_resource<1.0F, R_TIME>(player)),
+         DSL(write_resource<1.0F, R_SPACE>(player); write_mark<DRIVER>(player)))
 
 REGISTER_BATCH(
-    spacebarrier, REQUIRE(1 <= N && N <= 5 && RESOURCE(IRON, N)),
-    DSL(use_resource<static_cast<float>(N), IRON>(player)),
+    spacebarrier, skill::SPACE_BARRIER,
+    REQUIRE(1 <= N && N <= 5 && RESOURCE(R_IRON, N)),
+    DSL(use_resource<static_cast<float>(N), R_IRON>(player)),
     DSL(write_defense<{.type_ = defense_type::REAL_REDUCTION,
                        .power_ = static_cast<int>(5.5F * N - 0.5F * N * N),
                        .clock_ = {},

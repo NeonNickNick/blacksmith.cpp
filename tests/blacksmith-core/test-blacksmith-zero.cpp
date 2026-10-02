@@ -1,5 +1,7 @@
 #include "battle-platform/standard-platform.hpp"
 #include "domain/models.hpp"
+#include "skill-system/professions.hpp"
+#include <algorithm>
 #include <blacksmith-master/blacksmith-ai.hpp>
 #include <condition_variable>
 #include <iostream>
@@ -12,12 +14,17 @@ int main() {
     std::mutex player_mutex;
     std::condition_variable enemy_cv;
     std::condition_variable player_cv;
+    auto &mapping = blacksmith_core::skill_system::get_string_skill_mapping();
     blacksmith_core::battle_platform::standard_pvp platform{};
 
     platform.set_callback({[&]() {
         const auto &action = platform.enemy_action();
-        std::cout << "blacksmith-zero: " << action.skill_name_ << " "
-                  << action.param_ << '\n';
+
+        auto it = std::ranges::find_if(mapping, [&action](const auto &pair) {
+            return pair.second == action.skill_;
+        });
+        std::cout << "blacksmith-zero: " << it->first << " " << action.param_
+                  << '\n';
 
         {
             std::unique_lock lock(player_mutex);
@@ -43,7 +50,7 @@ int main() {
             }
 
             platform.submit_enemy_context(ai.choose_enemy_skill_impl(
-                platform.player(), platform.enemy()));
+                platform.player(), platform.enemy(), platform.round()));
         }
     });
 

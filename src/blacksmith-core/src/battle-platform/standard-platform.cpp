@@ -1,5 +1,7 @@
 #include "domain/models.hpp"
 #include "domain/transformations.hpp"
+#include "skill-system/professions.hpp"
+#include <algorithm>
 #include <battle-platform/standard-platform.hpp>
 #include <cassert>
 #include <charconv>
@@ -21,6 +23,7 @@ standard_pvp::standard_pvp(bool enable_info) {
 void standard_pvp::reset() {
     player_ = {};
     enemy_ = {};
+    round_ = 1;
     initialize(player_, enemy_);
 }
 void standard_pvp::set_callback(std::function<void()> &&callback) {
@@ -28,6 +31,7 @@ void standard_pvp::set_callback(std::function<void()> &&callback) {
 }
 community &standard_pvp::player() { return player_; }
 community &standard_pvp::enemy() { return enemy_; }
+int standard_pvp::round() const { return round_; }
 namespace {
 bool to_int(std::string_view sv, int &out) {
     const char *first = sv.data();
@@ -47,7 +51,7 @@ skill_context standard_pvp::collect_player_context() {
         std::string skill_name;
         int param = 0;
         skill_context context{
-            .action_ = {.skill_name_ = "iron", .param_ = 0, .next_ = nullptr},
+            .action_ = {.skill_ = skill::IRON, .param_ = 0, .next_ = nullptr},
             .self_ = &player_};
         std::string input;
         std::getline(std::cin, input);
@@ -72,10 +76,16 @@ skill_context standard_pvp::collect_player_context() {
             std::cout << "Wrong format." << '\n';
             continue;
         }
-        context.action_.skill_name_ = skill_name;
-        if (param != 0) {
-            context.action_.skill_name_ += tokens[1];
+        auto &mapping = get_string_skill_mapping();
+        auto it =
+            std::ranges::find_if(mapping, [&skill_name](const auto &pair) {
+                return pair.first == skill_name;
+            });
+        if (it == mapping.end()) {
+            std::cout << "Invalid." << '\n';
+            continue;
         }
+        context.action_.skill_ = it->second;
         context.action_.param_ = param;
         auto res = check_skill(player_, context);
         switch (res) {
@@ -127,6 +137,7 @@ void standard_pvp::try_pass_round() {
     enemy_submitted_ = false;
     declare(player_, player_context_, enemy_, enemy_context_);
     judge(player_, enemy_);
+    round_++;
     if (enable_info_) {
         print_info(player_, enemy_);
     }
