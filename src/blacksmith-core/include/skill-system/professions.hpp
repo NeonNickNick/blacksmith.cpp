@@ -14,11 +14,16 @@ inline std::vector<std::pair<std::string, skill>> &get_string_skill_mapping() {
     static std::vector<std::pair<std::string, skill>> mapping{};
     return mapping;
 }
-inline std::array<const profession_skill_set *,
-                  static_cast<size_t>(skill::SIZE)> &
-get_skill_profession_mapping() {
-    static std::array<const profession_skill_set *,
-                      static_cast<size_t>(skill::SIZE)>
+
+inline std::array<skill_check_func, static_cast<size_t>(skill::SIZE)> &
+get_skill_check_mapping() {
+    static std::array<skill_check_func, static_cast<size_t>(skill::SIZE)>
+        mapping{};
+    return mapping;
+}
+inline std::array<skill_declare_func, static_cast<size_t>(skill::SIZE)> &
+get_skill_declare_mapping() {
+    static std::array<skill_declare_func, static_cast<size_t>(skill::SIZE)>
         mapping{};
     return mapping;
 }

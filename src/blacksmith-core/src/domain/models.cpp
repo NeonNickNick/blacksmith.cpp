@@ -5,10 +5,8 @@
 #include <cstddef>
 #include <cstdlib>
 #include <domain/models.hpp>
-#include <functional>
 #include <iostream>
 #include <memory>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -193,24 +191,12 @@ skill_action skill_action::copy() const {
 }
 
 // 职业技能组
-profession_skill_set::profession_skill_set(
-    const std::vector<
-        std::tuple<skill, int, skill_check_func, skill_declare_func>> &skills,
-    skill_check_func passive_check, skill_declare_func passive_declare) {
+profession_skill_set::profession_skill_set(const std::vector<skill> &skills,
+                                           skill_check_func passive_check,
+                                           skill_declare_func passive_declare) {
     for (const auto &skill : skills) {
-        auto [name, param, check, declare] = skill;
-        authorized_skills_.push_back(name);
-        check_funcs_.emplace_back(name, param, check);
-        declare_funcs_.emplace_back(name, param, declare);
+        authorized_skills_.push_back(skill);
     }
-
-    auto proj = [](const auto &t) {
-        return std::tie(std::get<0>(t), std::get<1>(t));
-    };
-
-    std::ranges::sort(check_funcs_, std::less{}, proj);
-    std::ranges::sort(declare_funcs_, std::less{}, proj);
-
     std::ranges::sort(authorized_skills_);
     auto ret = std::ranges::unique(authorized_skills_);
     authorized_skills_.erase(ret.begin(), ret.end());
@@ -229,39 +215,21 @@ void profession_component::invoke_passive(skill_context &context) {
 }
 check_result profession_component::check(const skill_context &context) const {
     const auto NAME = context.action_.skill_;
-    const auto PARAM = context.action_.param_;
-    const auto *SET =
-        skill_system::get_skill_profession_mapping()[static_cast<size_t>(NAME)];
     if (!std::ranges::binary_search(authorized_skills_, NAME)) {
         return check_result::INVALID;
     }
-
-    auto it = std::ranges::lower_bound(
-        SET->check_funcs_, std::tie(NAME, PARAM), std::less{},
-        [](const auto &t) { return std::tie(std::get<0>(t), std::get<1>(t)); });
-
-    if (it != SET->check_funcs_.end() && std::get<0>(*it) == NAME &&
-        std::get<1>(*it) == PARAM) {
-        return std::get<2>(*it)(context) ? check_result::SUCCESS
-                                         : check_result::REJECTED;
-    }
-    return check_result::INVALID;
+    return skill_system::get_skill_check_mapping()[static_cast<size_t>(NAME)](
+               context)
+               ? check_result::SUCCESS
+               : check_result::REJECTED;
 }
 void profession_component::declare(skill_context &context) {
     const auto NAME = context.action_.skill_;
-    const auto PARAM = context.action_.param_;
-    const auto *SET =
-        skill_system::get_skill_profession_mapping()[static_cast<size_t>(NAME)];
-    auto it = std::ranges::lower_bound(
-        SET->declare_funcs_, std::tie(NAME, PARAM), std::less{},
-        [](const auto &t) { return std::tie(std::get<0>(t), std::get<1>(t)); });
-
-    if (it != SET->declare_funcs_.end() && std::get<0>(*it) == NAME &&
-        std::get<1>(*it) == PARAM) {
-        std::get<2> (*it)(context);
-        return;
+    if (!std::ranges::binary_search(authorized_skills_, NAME)) {
+        assert(false);
     }
-    assert(false);
+    skill_system::get_skill_declare_mapping()[static_cast<size_t>(NAME)](
+        context);
 }
 void profession_component::add_profession(
     const profession_skill_set *skill_set) {

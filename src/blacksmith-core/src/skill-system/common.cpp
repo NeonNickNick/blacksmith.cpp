@@ -29,21 +29,23 @@ REGISTER(slash, skill::SLASH, REQUIRE(RESOURCE(R_IRON, 2.5F);),
          DSL(write_attack<5, PHYSICAL>(player);));
 
 REGISTER_BATCH(shield, skill::SHIELD,
-               REQUIRE(RESOURCE(R_IRON, 0.0F + (0.5F * N));),
-               DSL(use_resource<0.0F + (0.5F * N), R_IRON>(player);),
-               DSL(write_defense<{.type_ = defense_type::COMMON_REDUCTION,
-                                  .power_ = 2 + N,
-                                  .defender_ = default_reduction}>(player);))
+               REQUIRE_BATCH(RESOURCE(R_IRON, 0.0F + (0.5F * N));),
+               DSL_BATCH(use_resource<R_IRON>(0.0F + (0.5F * N), player);),
+               DSL_BATCH(write_defense({.type_ = defense_type::COMMON_REDUCTION,
+                                        .power_ = 2 + N,
+                                        .defender_ = default_reduction},
+                                       player);))
 REGISTER_BATCH(thornshield, skill::THORN_SHIELD,
-               REQUIRE(RESOURCE(R_IRON, 1.0F + (0.5F * N));),
-               DSL(use_resource<1.0F + (0.5F * N), R_IRON>(player);),
-               DSL(write_defense<{.type_ = defense_type::THORN_REDUCTION,
-                                  .power_ = 4 + N,
-                                  .defender_ = thorn_reduction}>(player);))
+               REQUIRE_BATCH(RESOURCE(R_IRON, 1.0F + (0.5F * N));),
+               DSL_BATCH(use_resource<R_IRON>(1.0F + (0.5F * N), player);),
+               DSL_BATCH(write_defense({.type_ = defense_type::THORN_REDUCTION,
+                                        .power_ = 4 + N,
+                                        .defender_ = thorn_reduction},
+                                       player);))
 REGISTER_BATCH(recovery, skill::RECOVERY,
-               REQUIRE(RESOURCE(R_IRON, 0.5F + (0.5F * N))),
-               DSL(use_resource<0.5F + (0.5F * N), R_IRON>(player);),
-               DSL(write_recovery<1 + N>(player);))
+               REQUIRE_BATCH(RESOURCE(R_IRON, 0.5F + (0.5F * N))),
+               DSL_BATCH(use_resource<R_IRON>(0.5F + (0.5F * N), player);),
+               DSL_BATCH(write_recovery(1 + N, player);))
 
 namespace {
 template <auto data_getter, auto if_reflect>

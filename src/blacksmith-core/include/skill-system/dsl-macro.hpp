@@ -18,29 +18,13 @@
 #define BEGIN_PROFESSION                                                       \
     using namespace blacksmith_core::domain;                                   \
     namespace blacksmith_core::skill_system {                                  \
-    static std::vector<                                                        \
-        std::tuple<skill, int, skill_check_func, skill_declare_func>>          \
-        skills{};                                                              \
-    static std::vector<std::pair<std::string, skill>>                          \
-        partial_string_skill_mapping{};                                        \
+    static std::vector<skill> skills{};                                        \
     static skill_check_func passive_check_func = nullptr;                      \
     static skill_declare_func passive_declare_func = nullptr;
 
 #define END(profession_name)                                                   \
     static profession_skill_set profession_name##_skill_set{                   \
         skills, passive_check_func, passive_declare_func};                     \
-    static bool mapping_merged = []() {                                        \
-        auto &s_s_mapping = get_string_skill_mapping();                        \
-        auto &s_p_mapping = get_skill_profession_mapping();                    \
-        for (const auto &p : partial_string_skill_mapping) {                   \
-            s_p_mapping[static_cast<size_t>(p.second)] =                       \
-                &profession_name##_skill_set;                                  \
-        }                                                                      \
-        for (auto &&p : partial_string_skill_mapping) {                        \
-            s_s_mapping.emplace_back(std::move(p));                            \
-        }                                                                      \
-        return true;                                                           \
-    }();                                                                       \
                                                                                \
     const blacksmith_core::domain::profession_skill_set *                      \
     get_##profession_name() {                                                  \
@@ -49,8 +33,11 @@
     }
 
 #define REQUIRE(...) [](const community &player) { return __VA_ARGS__; }(p);
+#define REQUIRE_BATCH(...)                                                     \
+    [N](const community &player) { return __VA_ARGS__; }(p);
 #define REQUIRE_(...) []() { return __VA_ARGS__; }();
 #define DSL(...) [](community &player) { __VA_ARGS__; }(p);
+#define DSL_BATCH(...) [N](community &player) { __VA_ARGS__; }(p);
 #define DSL_(...) []() { __VA_ARGS__; }();
 
 #define PASSIVE(check, declare)                                                \
@@ -94,9 +81,32 @@
         declare_use declare_write                                              \
     }                                                                          \
     static bool name##_registed = []() {                                       \
-        skills.emplace_back(skill_enum, 0, CHECK_NAME(name),                   \
-                            DECLARE_NAME(name));                               \
-        partial_string_skill_mapping.emplace_back(#name, skill_enum);          \
+        skills.push_back(skill_enum);                                          \
+        get_string_skill_mapping().emplace_back(#name, skill_enum);            \
+        get_skill_check_mapping()[static_cast<size_t>(skill_enum)] =           \
+            &CHECK_NAME(name);                                                 \
+        get_skill_declare_mapping()[static_cast<size_t>(skill_enum)] =         \
+            &DECLARE_NAME(name);                                               \
+        return true;                                                           \
+    }();
+#define REGISTER_BATCH(name, skill_enum, check, declare_use, declare_write)    \
+    CHECK(name) {                                                              \
+        auto &p = *context.self_;                                              \
+        const auto N = context.action_.param_;                                 \
+        return check                                                           \
+    }                                                                          \
+    DECLARE(name) {                                                            \
+        auto &p = *context.self_;                                              \
+        const auto N = context.action_.param_;                                 \
+        declare_use declare_write                                              \
+    }                                                                          \
+    static bool name##_registed = []() {                                       \
+        skills.push_back(skill_enum);                                          \
+        get_string_skill_mapping().emplace_back(#name, skill_enum);            \
+        get_skill_check_mapping()[static_cast<size_t>(skill_enum)] =           \
+            &CHECK_NAME(name);                                                 \
+        get_skill_declare_mapping()[static_cast<size_t>(skill_enum)] =         \
+            &DECLARE_NAME(name);                                               \
         return true;                                                           \
     }();
 #define REGISTER_(name, skill_enum, check, declare_use, declare_write)         \
@@ -105,57 +115,27 @@
         declare_use declare_write                                              \
     }                                                                          \
     static bool name##_registed = []() {                                       \
-        skills.emplace_back(skill_enum, 0, CHECK_NAME(name),                   \
-                            DECLARE_NAME(name));                               \
-        partial_string_skill_mapping.emplace_back(#name, skill_enum);          \
+        skills.push_back(skill_enum);                                          \
+        get_string_skill_mapping().emplace_back(#name, skill_enum);            \
+        get_skill_check_mapping()[static_cast<size_t>(skill_enum)] =           \
+            &CHECK_NAME(name);                                                 \
+        get_skill_declare_mapping()[static_cast<size_t>(skill_enum)] =         \
+            &DECLARE_NAME(name);                                               \
         return true;                                                           \
     }();
-
-inline constexpr int BATCH_SIZE = 5;
-
-// NOLINTBEGIN
-#define REGISTER_BATCH(name, skill_enum, check, declare_use, declare_write)    \
-    TMP_CHECK(name, N) {                                                       \
-        auto &p = *context.self_;                                              \
-        return check                                                           \
-    }                                                                          \
-    TMP_DECLARE(name, N) {                                                     \
-        auto &p = *context.self_;                                              \
-        declare_use declare_write                                              \
-    }                                                                          \
-    template <int N> bool name##_regist() {                                    \
-        if constexpr (N == 0) {                                                \
-            skills.emplace_back(skill_enum, 0, TMP_CHECK_NAME(name, 0),        \
-                                TMP_DECLARE_NAME(name, 0));                    \
-            partial_string_skill_mapping.emplace_back(#name, skill_enum);      \
-            return true;                                                       \
-        } else {                                                               \
-            name##_regist<N - 1>();                                            \
-            skills.emplace_back(skill_enum, N, TMP_CHECK_NAME(name, N),        \
-                                TMP_DECLARE_NAME(name, N));                    \
-            return true;                                                       \
-        }                                                                      \
-    }                                                                          \
-    static bool name##_registed = name##_regist<BATCH_SIZE>();
-// NOLINTEND
-
-// NOLINTBEGIN
 #define REPEAT_BATCH(name, dsl_func)                                           \
-    template <int N, int index, int repeat_times>                              \
-    void name##_impl(community &player) {                                      \
-        if constexpr (index >= repeat_times) {                                 \
+    template <int index, int len> void name##_impl(int N, community &player) { \
+        if constexpr (index >= len) {                                          \
             return;                                                            \
         } else {                                                               \
             auto &p = player;                                                  \
             dsl_func;                                                          \
-            name##_impl<N, index + 1, repeat_times>(player);                   \
+            name##_impl<index + 1, len>(N, player);                            \
         }                                                                      \
     }                                                                          \
-    template <int N, int repeat_times> void name(community &player) {          \
-        name##_impl<N, 0, repeat_times>(player);                               \
+    template <int len> void name(int N, community &player) {                   \
+        name##_impl<0, len>(N, player);                                        \
     }
-// NOLINTEND
-
 #define NOTHING true
 #define RESOURCE(type, need) player.focus_.resource_.check(type, need)
 #define RESOURCE_COMMON_ONLY(type, need)                                       \

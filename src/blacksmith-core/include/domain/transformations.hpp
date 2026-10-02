@@ -125,10 +125,23 @@ attack_data &write_attack(community &player) {
     return player.focus_.turn_context_.attack_context_.write(
         clock, type, power, ap_factor, executor, 0);
 }
+template <attack_type type, clap_round_clock clock = {},
+          attack_execute_func executor = &execute_attack,
+          float ap_factor = 1.0F>
+attack_data &write_attack(int power, community &player) {
+    return player.focus_.turn_context_.attack_context_.write(
+        clock, type, power, ap_factor, executor, 0);
+}
 
 template <defense_entity defense, clap_round_clock clock = {},
           defense_execute_func executor = &execute_defense>
 defense_data &write_defense(community &player) {
+    return player.focus_.turn_context_.defense_context_.write(clock, defense,
+                                                              executor);
+}
+template <clap_round_clock clock = {},
+          defense_execute_func executor = &execute_defense>
+defense_data &write_defense(const defense_entity &defense, community &player) {
     return player.focus_.turn_context_.defense_context_.write(clock, defense,
                                                               executor);
 }
@@ -177,6 +190,16 @@ void write_free(community &player) {
 
 template <float need, resource_type type, bool common_only = false>
 void use_resource(community &player) {
+    if constexpr (type == resource_type::HP) {
+        player.focus_.health_.lose_hp(static_cast<int>(need));
+    } else if constexpr (type == resource_type::MHP) {
+        player.focus_.health_.lose_mhp(static_cast<int>(need));
+    } else {
+        player.focus_.resource_.use(type, need, common_only);
+    }
+}
+template <resource_type type, bool common_only = false>
+void use_resource(float need, community &player) {
     if constexpr (type == resource_type::HP) {
         player.focus_.health_.lose_hp(static_cast<int>(need));
     } else if constexpr (type == resource_type::MHP) {

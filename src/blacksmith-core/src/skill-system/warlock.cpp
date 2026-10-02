@@ -11,25 +11,25 @@ REGISTER(magic, skill::MAGIC, REQUIRE(RESOURCE(R_IRON, 1.0F)),
 
 REPEAT_BATCH(
     magicattack,
-    DSL(write_attack<2 * N, MAGICAL, {.delayed_rounds_ = index}>(player)))
+    DSL_BATCH(write_attack<MAGICAL, {.delayed_rounds_ = index}>(2 * N, player)))
 
 REGISTER_BATCH(magicattack, skill::MAGIC_ATTACK,
-               REQUIRE(N > 0 && RESOURCE(R_MAGIC, N)),
-               DSL(use_resource<static_cast<float>(N), R_MAGIC>(player);),
-               DSL(magicattack<N, 3>(player);))
+               REQUIRE_BATCH(N > 0 && RESOURCE(R_MAGIC, static_cast<float>(N))),
+               DSL_BATCH(use_resource<R_MAGIC>(static_cast<float>(N), player);),
+               DSL_BATCH(magicattack<3>(N, player);))
 
-REPEAT_BATCH(magicshield,
-             DSL(write_defense<{.type_ = defense_type::REAL_REDUCTION,
-                                .power_ = 3 * N,
-                                .clock_ = {},
-                                .defender_ = default_reduction,
-                                .update_ = default_update},
-                               {.delayed_rounds_ = index}>(player);))
+REPEAT_BATCH(magicshield, DSL_BATCH(write_defense<{.delayed_rounds_ = index}>(
+                                        {.type_ = defense_type::REAL_REDUCTION,
+                                         .power_ = 3 * N,
+                                         .clock_ = {},
+                                         .defender_ = default_reduction,
+                                         .update_ = default_update},
+                                        player);))
 
 REGISTER_BATCH(magicshield, skill::MAGIC_SHIELD,
-               REQUIRE(N > 0 && RESOURCE(R_MAGIC, N)),
-               DSL(use_resource<static_cast<float>(N), R_MAGIC>(player);),
-               DSL(magicshield<N, 3>(player)))
+               REQUIRE_BATCH(N > 0 && RESOURCE(R_MAGIC, static_cast<float>(N))),
+               DSL_BATCH(use_resource<R_MAGIC>(static_cast<float>(N), player);),
+               DSL_BATCH(magicshield<3>(N, player)))
 
 REGISTER(sacrifice, skill::SACRIFICE, REQUIRE(MHP(2)),
          DSL(use_resource<1.0F, R_MHP>(player);),

@@ -368,13 +368,10 @@ using skill_check_func = bool (*)(const skill_context &);
 using skill_declare_func = void (*)(skill_context &);
 class profession_skill_set {
   public:
-    profession_skill_set(
-        const std::vector<std::tuple<skill, int, skill_check_func,
-                                     skill_declare_func>> &skills,
-        skill_check_func passive_check, skill_declare_func passive_declare);
+    profession_skill_set(const std::vector<skill> &skills,
+                         skill_check_func passive_check,
+                         skill_declare_func passive_declare);
     std::vector<skill> authorized_skills_;
-    std::vector<std::tuple<skill, int, skill_check_func>> check_funcs_;
-    std::vector<std::tuple<skill, int, skill_declare_func>> declare_funcs_;
     std::pair<skill_check_func, skill_declare_func> passive_func_{nullptr,
                                                                   nullptr};
 };
