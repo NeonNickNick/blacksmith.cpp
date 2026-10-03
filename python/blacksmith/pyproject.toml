@@ -1,0 +1,19 @@
+[project]
+name = "blacksmith"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pybind11>=3.1.0",
+    "setuptools>=84.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=84.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["blacksmith"]
+package-dir = { "blacksmith" = "." }
+
+[tool.setuptools.package-data]
+blacksmith = ["*.pyd", "*.so", "*.dylib", "*.pyi"]

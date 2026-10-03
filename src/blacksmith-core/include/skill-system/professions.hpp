@@ -7,9 +7,9 @@
 #include <vector>
 #define DEF_SKILL_SET(name) const profession_skill_set *get_##name();
 #define SKILL_SET(name) get_##name()
-using namespace blacksmith_core::domain;
+using namespace blacksmith::domain;
 using profession_func = const profession_skill_set *();
-namespace blacksmith_core::skill_system {
+namespace blacksmith::skill_system {
 inline std::vector<std::pair<std::string, skill>> &get_string_skill_mapping() {
     static std::vector<std::pair<std::string, skill>> mapping{};
     return mapping;
@@ -34,4 +34,4 @@ DEF_SKILL_SET(driver)
 DEF_SKILL_SET(lancer)
 
 DEF_SKILL_SET(alchemy)
-} // namespace blacksmith_core::skill_system
+} // namespace blacksmith::skill_system

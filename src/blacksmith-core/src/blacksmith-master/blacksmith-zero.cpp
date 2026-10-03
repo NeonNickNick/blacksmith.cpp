@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <blacksmith-master/blacksmith-ai.hpp>
+#include <blacksmith-master/blacksmith-zero.hpp>
 #include <cmath>
 #include <cstddef>
 #include <domain/models.hpp>
@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-using namespace blacksmith_core::domain;
-namespace blacksmith_core::blacksmith_master {
+using namespace blacksmith::domain;
+namespace blacksmith::blacksmith_master {
 namespace {
 constexpr int ROLLOUT_DEPTH = 5;
 
@@ -20,19 +20,71 @@ bool terminal(const community &player, const community &enemy) {
 }
 } // namespace
 
+std::vector<float> blacksmith_zero_param::to_vector() const {
+    std::vector<float> res{};
+    res.push_back(win_score_);
+
+    res.push_back(early_iron_);
+    res.push_back(early_excess_iron_);
+    res.push_back(early_space_);
+    res.push_back(early_time_);
+    res.push_back(early_default_);
+
+    res.push_back(mid_iron_);
+    res.push_back(mid_excess_iron_);
+    res.push_back(mid_space_);
+    res.push_back(mid_time_);
+    res.push_back(mid_default_);
+
+    res.push_back(late_iron_);
+    res.push_back(late_excess_iron_);
+    res.push_back(late_space_);
+    res.push_back(late_time_);
+    res.push_back(late_default_);
+
+    res.push_back(early_attack_penalty_);
+    res.push_back(extra_profession_bonus_);
+    res.push_back(late_round_penalty_);
+
+    return res;
+}
+void blacksmith_zero_param::from_vector(const std::vector<float> &v) {
+    win_score_ = v[0];
+
+    early_iron_ = v[1];
+    early_excess_iron_ = v[2];
+    early_space_ = v[3];
+    early_time_ = v[4];
+    early_default_ = v[5];
+
+    mid_iron_ = v[6];
+    mid_excess_iron_ = v[7];
+    mid_space_ = v[8];
+    mid_time_ = v[9];
+    mid_default_ = v[10];
+
+    late_iron_ = v[11];
+    late_excess_iron_ = v[12];
+    late_space_ = v[13];
+    late_time_ = v[14];
+    late_default_ = v[15];
+
+    early_attack_penalty_ = v[16];
+    extra_profession_bonus_ = v[17];
+    late_round_penalty_ = v[18];
+}
+
 mcts_node::mcts_node(community &&player, community &&enemy, mcts_node *parent,
                      std::vector<skill_action> &&actions, int round)
     : player_(std::make_unique<community>(std::move(player))),
       enemy_(std::make_unique<community>(std::move(enemy))), parent_(parent),
       untried_(std::move(actions)), round_(round) {}
 
-void blacksmith_zero::init_impl() {}
-
 skill_context blacksmith_zero::choose_enemy_skill_impl(const community &player,
                                                        const community &enemy,
                                                        int round) {
     auto children =
-        run_mcts(community(player), community(enemy), params_.mcts_iterations_);
+        run_mcts(community(player), community(enemy), param_.mcts_iterations_);
     return to_context(sample_from_topk(children, round),
                       const_cast<community &>(enemy));
 }
@@ -119,8 +171,8 @@ skill_action blacksmith_zero::sample_from_topk(
                right->wins_ / (right->visits_ + 1e-6F);
     });
     children.resize(std::min<std::size_t>(2, children.size()));
-    const float TEMPERATURE = std::max(
-        0.001F, params_.temperature_coefficient_ * static_cast<float>(round));
+    const float TEMPERATURE = std::max(0.001F, param_.temperature_coefficient_ *
+                                                   static_cast<float>(round));
     const float MAX_SCORE =
         children.front()->wins_ /
         (static_cast<float>(children.front()->visits_) + 1e-6F);
@@ -166,22 +218,79 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
     const auto ENEMY_HP = static_cast<float>(enemy.focus_.health_.hp_);
     const auto PLAYER_HP = static_cast<float>(player.focus_.health_.hp_);
     if (ENEMY_HP <= 0.0F) {
-        return params_.lose_score_;
+        return -param_.win_score_;
     }
     if (PLAYER_HP <= 0.0F) {
-        return params_.win_score_;
+        return param_.win_score_;
     }
-    const auto RESOURCE_SCORE = [](const community &com) {
-        const auto &resource = com.focus_.resource_;
-        return resource.query(resource_type::IRON) +
-               (3.0F * resource.query(resource_type::SPACE)) +
-               (2.0F * resource.query(resource_type::MAGIC));
+    auto get_score = [this](const community &player, const community &enemy,
+                            int round) {
+        const auto EARLY = round < 8;
+        const auto MID = round >= 8 && round < 15;
+        const auto LATE = round >= 15;
+
+        // auto player_hp = player.focus_.health_.hp_;
+        auto enemy_hp = enemy.focus_.health_.hp_;
+        auto enemy_mhp = enemy.focus_.health_.mhp_;
+
+        auto player_iron = player.focus_.resource_.query(resource_type::IRON);
+        auto player_space = player.focus_.resource_.query(resource_type::SPACE);
+        auto player_time = player.focus_.resource_.query(resource_type::TIME);
+        auto player_default =
+            player.focus_.resource_.query(resource_type::MAGIC);
+
+        bool have_extra_profession =
+            player.focus_.profession_.have_extra_profession_;
+
+        float score = 0;
+        float resource_score = 0;
+        if (EARLY) {
+            resource_score += player_iron * param_.early_iron_;
+            if (player_iron > 4) {
+                resource_score += (player_iron - 4) * param_.early_excess_iron_;
+            }
+            resource_score += player_space * param_.early_space_;
+            resource_score += player_time * param_.early_time_;
+            resource_score += player_default * param_.early_default_;
+        } else if (MID) {
+            resource_score += player_iron * param_.mid_iron_;
+            if (player_iron > 4) {
+                resource_score += (player_iron - 4) * param_.mid_excess_iron_;
+            }
+            resource_score += player_space * param_.mid_space_;
+            resource_score += player_time * param_.mid_time_;
+            resource_score += player_default * param_.mid_default_;
+        } else if (LATE) {
+            resource_score += player_iron * param_.late_iron_;
+            if (player_iron > 4) {
+                resource_score += (player_iron - 4) * param_.late_excess_iron_;
+            }
+            resource_score += player_space * param_.late_space_;
+            resource_score += player_time * param_.late_time_;
+            resource_score += player_default * param_.late_default_;
+        }
+        score += resource_score;
+
+        if (have_extra_profession) {
+            score += param_.extra_profession_bonus_;
+        }
+
+        if (EARLY) {
+            score -= static_cast<float>(enemy_mhp - enemy_hp) *
+                     param_.early_attack_penalty_;
+        }
+
+        if (LATE) {
+            score -=
+                static_cast<float>(round - 15) * param_.late_round_penalty_;
+        }
+        return score;
     };
-    const float ENEMY_RESOURCES = RESOURCE_SCORE(enemy);
-    const float PLAYER_RESOURCES = RESOURCE_SCORE(player);
-    return (10.0F * ((ENEMY_RESOURCES / (PLAYER_HP + 1e-6F)) -
-                     (PLAYER_RESOURCES / (ENEMY_HP + 1e-6F)))) +
-           (0.5F * (ENEMY_HP - PLAYER_HP)) - static_cast<float>(round);
+
+    auto player_score = get_score(player, enemy, round);
+    auto enemy_score = get_score(enemy, player, round); // NOLINT
+
+    return enemy_score - (0.5F * player_score);
 }
 
 std::vector<skill_action>
@@ -197,7 +306,7 @@ blacksmith_zero::get_all_authorized(const community &com) {
         skill_action ACTION{.skill_ = name, .param_ = 0};
         auto context = to_context(ACTION, const_cast<community &>(com));
         if (check_skill(com, context) == check_result::SUCCESS) {
-            actions.push_back({.skill_ = name, .param_ = 0});
+            actions.emplace_back(std::move(ACTION));
         }
     }
     return actions;
@@ -216,4 +325,4 @@ skill_context blacksmith_zero::to_context(const skill_action &action,
                                           community &self) {
     return {.action_ = action.copy(), .self_ = &self};
 }
-} // namespace blacksmith_core::blacksmith_master
+} // namespace blacksmith::blacksmith_master

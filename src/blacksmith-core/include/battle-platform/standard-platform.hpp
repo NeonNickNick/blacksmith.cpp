@@ -1,20 +1,18 @@
 #pragma once
 
-#include "blacksmith-master/blacksmith-ai.hpp"
 #include <atomic>
-#include <concepts>
 #include <condition_variable>
 #include <cstdint>
 #include <domain/models.hpp>
 #include <functional>
-#include <iostream>
+// #include <iostream>
 #include <mutex>
 #include <stop_token>
 #include <thread>
 #include <vector>
 
-using namespace blacksmith_core::domain;
-namespace blacksmith_core::battle_platform {
+using namespace blacksmith::domain;
+namespace blacksmith::battle_platform {
 class standard_pvp {
   public:
     enum class battle_result : uint8_t {
@@ -30,16 +28,16 @@ class standard_pvp {
     [[nodiscard]] int round() const;
     [[nodiscard]] skill_action player_action() const;
     [[nodiscard]] skill_action enemy_action() const;
-    [[nodiscard]] skill_context collect_player_context();
+    [[nodiscard]] skill_context collect_context(community &com);
     [[nodiscard]] battle_result result() const;
-    void submit_player_context(skill_context &&context);
-    void submit_enemy_context(skill_context &&context);
+    void submit_player_context(const skill_context &context);
+    void submit_enemy_context(const skill_context &context);
     void set_callback(std::function<void()> &&callback);
 
   private:
     bool enable_info_{true};
     std::mutex mtx_;
-    std::function<void()> callback_;
+    std::function<void()> callback_{[]() {}};
     community player_{};
     community enemy_{};
     int round_{1};
@@ -50,16 +48,16 @@ class standard_pvp {
     void try_pass_round();
 };
 
-template <typename T>
-concept is_blacksmith_ai =
-    std::derived_from<T, blacksmith_master::blacksmith_ai<T>>;
-
-template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
+template <typename B, typename T> class benchmark_test {
   public:
+    template <typename init_func> void set_baseline_initialize(init_func init) {
+        baseline_initialize_ = init;
+    }
+    template <typename init_func> void set_test_initialize(init_func init) {
+        test_initialize_ = init;
+    }
     [[nodiscard]] float win_rate(int battle_times) {
         constexpr int THREAD_COUNT = 12;
-        baseline_.init();
-        test_.init();
         cnt_ = 0;
         std::atomic_int win_times = 0;
         std::vector<std::jthread> threads;
@@ -79,7 +77,7 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
     int cnt_{0};
     std::mutex cnt_mutex_;
     std::mutex cout_mutex_;
-    int win_rate_unit(int index, int battle_times) {
+    int win_rate_unit(int /*index*/, int battle_times) {
         int win_times = 0;
 
         bool enemy_begin{true};
@@ -91,7 +89,7 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
         std::condition_variable enemy_cv;
         std::condition_variable player_cv;
         std::condition_variable finish_cv;
-        blacksmith_core::battle_platform::standard_pvp platform{false};
+        blacksmith::battle_platform::standard_pvp platform{false};
 
         platform.set_callback({[&]() {
             {
@@ -111,11 +109,11 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
                             win_times++;
                         }
 
-                        cnt_++;
-                        if (cnt_ % 50 == 0) {
-                            std::cout << "index" << index << ": " << cnt_
-                                      << '\n';
-                        }
+                        cnt_++; /*
+                         if (cnt_ % 50 == 0) {
+                             std::cout << "index" << index << ": " << cnt_
+                                       << '\n';
+                         }*/
                         cnt_lock.unlock();
                         platform.reset();
                     }
@@ -135,7 +133,7 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
 
         std::jthread baseline_t([&](const std::stop_token &st) {
             B ai{};
-            ai.init();
+            baseline_initialize_(ai);
 
             while (!st.stop_requested()) {
                 {
@@ -154,7 +152,7 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
         });
         std::jthread test_t([&](const std::stop_token &st) {
             T ai{};
-            ai.init();
+            test_initialize_(ai);
 
             while (!st.stop_requested()) {
                 {
@@ -187,7 +185,7 @@ template <is_blacksmith_ai B, is_blacksmith_ai T> class benchmark_test {
         player_cv.notify_all();
         return win_times;
     }
-    B baseline_;
-    T test_;
+    std::function<void(B &)> baseline_initialize_{[](B & /*b*/) {}};
+    std::function<void(T &)> test_initialize_{[](T & /*t*/) {}};
 };
-} // namespace blacksmith_core::battle_platform
+} // namespace blacksmith::battle_platform

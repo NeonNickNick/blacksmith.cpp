@@ -1,0 +1,25 @@
+[project]
+name = "optimize"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Neon", email = "910400024@qq.com" }
+]
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "blacksmith",
+    "cma>=4.5.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.4.6",
+]
+
+[project.scripts]
+optimize = "optimize:main"
+
+[build-system]
+requires = ["uv_build>=0.12.22,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+blacksmith = { path = "blacksmith/dist/blacksmith-0.1.0-cp311-cp311-win_amd64.whl" }

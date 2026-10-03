@@ -3,7 +3,7 @@
 
 CompileFlags:
   # Point to the CMake-generated compilation database
-  CompilationDatabase: out/build/x64-debug
+  CompilationDatabase: out/build/x64-release
 
   # Emulate MSVC (cl.exe) so clangd understands /DWIN32, /EHsc, etc.
   Add:

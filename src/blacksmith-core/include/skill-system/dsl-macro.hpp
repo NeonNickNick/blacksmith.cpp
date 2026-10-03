@@ -16,8 +16,8 @@
     template <int N> void DECLARE_NAME(name)(skill_context & context)
 
 #define BEGIN_PROFESSION                                                       \
-    using namespace blacksmith_core::domain;                                   \
-    namespace blacksmith_core::skill_system {                                  \
+    using namespace blacksmith::domain;                                   \
+    namespace blacksmith::skill_system {                                  \
     static std::vector<skill> skills{};                                        \
     static skill_check_func passive_check_func = nullptr;                      \
     static skill_declare_func passive_declare_func = nullptr;
@@ -26,7 +26,7 @@
     static profession_skill_set profession_name##_skill_set{                   \
         skills, passive_check_func, passive_declare_func};                     \
                                                                                \
-    const blacksmith_core::domain::profession_skill_set *                      \
+    const blacksmith::domain::profession_skill_set *                      \
     get_##profession_name() {                                                  \
         return &profession_name##_skill_set;                                   \
     }                                                                          \

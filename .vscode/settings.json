@@ -39,6 +39,10 @@
     // ===== CMake =====
     "cmake.configureOnOpen": false,
     "files.exclude": {
-        "out/": true
+        "out/": true,
+        "**/*.rpyc": true,
+        "**/*.rpa": true,
+        "**/*.rpymc": true,
+        "**/cache/": true
     }
 }

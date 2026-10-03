@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-namespace blacksmith_core::domain {
+namespace blacksmith::domain {
 // 时钟：包含跨回合行为控制
 bool clap_round_clock::is_ringing() const {
     return remaining_rounds_ > 0 && delayed_rounds_ == 0;
@@ -178,7 +178,8 @@ void resource_component::gain(resource_type type, float gain) {
     templates_[template_index(type)].gain(type, gain);
 }
 float resource_component::query(resource_type type) const {
-    return templates_[template_index(type)].common_;
+    const auto &tmp = templates_[template_index(type)];
+    return tmp.common_ + tmp.gold_;
 }
 //
 
@@ -215,7 +216,7 @@ void profession_component::invoke_passive(skill_context &context) {
 }
 check_result profession_component::check(const skill_context &context) const {
     const auto NAME = context.action_.skill_;
-    if (!std::ranges::binary_search(authorized_skills_, NAME)) {
+    if (!authorized_bitset_.test(static_cast<size_t>(NAME))) {
         return check_result::INVALID;
     }
     return skill_system::get_skill_check_mapping()[static_cast<size_t>(NAME)](
@@ -225,7 +226,7 @@ check_result profession_component::check(const skill_context &context) const {
 }
 void profession_component::declare(skill_context &context) {
     const auto NAME = context.action_.skill_;
-    if (!std::ranges::binary_search(authorized_skills_, NAME)) {
+    if (!authorized_bitset_.test(static_cast<size_t>(NAME))) {
         assert(false);
     }
     skill_system::get_skill_declare_mapping()[static_cast<size_t>(NAME)](
@@ -233,8 +234,9 @@ void profession_component::declare(skill_context &context) {
 }
 void profession_component::add_profession(
     const profession_skill_set *skill_set) {
-    for (const auto &skill_name : skill_set->authorized_skills_) {
-        authorized_skills_.push_back(skill_name);
+    for (const auto &skill : skill_set->authorized_skills_) {
+        authorized_skills_.push_back(skill);
+        authorized_bitset_.set(static_cast<size_t>(skill));
     }
     const auto [check, declare] = skill_set->passive_func_;
     if (check != nullptr && declare != nullptr) {
@@ -245,6 +247,12 @@ void profession_component::disable_skill(skill skill_name) {
     std::erase_if(authorized_skills_, [&skill_name](const auto &name) {
         return name == skill_name;
     });
+    authorized_bitset_.reset(static_cast<size_t>(skill_name));
+}
+void profession_component::disable_skill(const std::vector<skill> &skill_name) {
+    for (const auto S : skill_name) {
+        disable_skill(S);
+    }
 }
 const std::vector<skill> &profession_component::authorized_skills() const {
     return authorized_skills_;
@@ -259,4 +267,4 @@ void body::print_info() const {
               << "   SPACE:" << resource_.query(resource_type::SPACE) << '\n';
 }
 //
-} // namespace blacksmith_core::domain
+} // namespace blacksmith::domain

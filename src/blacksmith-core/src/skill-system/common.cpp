@@ -2,6 +2,7 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
+#include <vector>
 
 BEGIN_PROFESSION
 
@@ -122,40 +123,49 @@ REGISTER(
                        .merge_ = [](defense_entity &a, defense_entity & /*b*/) {
                            a.power_ = 12;
                        }}>(player)))
-
+namespace {
+const std::vector<skill> PROFESSION_SKILLS{skill::WARLOCK, skill::CANNON,
+                                           skill::DRIVER, skill::LANCER,
+                                           skill::BLOODSIGIL};
+}
 REGISTER(warlock, skill::WARLOCK, REQUIRE(RESOURCE(R_IRON, 1.0F)),
          DSL(use_resource<1.0F, R_IRON>(player)),
          DSL(write_profession<&get_warlock>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::WARLOCK);
+                 player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
+                 player.focus_.profession_.have_extra_profession_ = true;
              }>(player)))
 
 REGISTER(cannon, skill::CANNON, REQUIRE(RESOURCE(R_IRON, 4.0F)),
          DSL(use_resource<4.0F, R_IRON>(player)),
          DSL(write_profession<&get_cannon>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::CANNON);
+                 player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
+                 player.focus_.profession_.have_extra_profession_ = true;
              }>(player)))
 
 REGISTER(driver, skill::DRIVER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
          DSL(use_resource<3.0F, R_IRON>(player)),
          DSL(write_profession<&get_driver>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::DRIVER);
+                 player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
+                 player.focus_.profession_.have_extra_profession_ = true;
              }>(player)))
 
 REGISTER(lancer, skill::LANCER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
          DSL(use_resource<3.0F, R_IRON>(player)),
          DSL(write_profession<&get_lancer>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::LANCER);
+                 player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
+                 player.focus_.profession_.have_extra_profession_ = true;
              }>(player)))
 
 REGISTER(bloodsigil, skill::BLOODSIGIL, REQUIRE(RESOURCE(R_IRON, 7.0F)),
          DSL(use_resource<7.0F, R_IRON>(player)),
          DSL(write_profession<&get_lancer>(player);
              write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::BLOODSIGIL);
+                 player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
+                 player.focus_.profession_.have_extra_profession_ = true;
                  player.focus_.profession_.disable_skill(skill::STICK);
                  player.focus_.profession_.disable_skill(skill::DRILL);
                  player.focus_.profession_.disable_skill(skill::SLASH);

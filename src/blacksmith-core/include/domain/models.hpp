@@ -1,17 +1,17 @@
 #pragma once
 
 #include <array>
+#include <bitset>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <tuple>
 #include <utility>
 #include <vector>
 
 // 此头文件定义了游戏领域对象，包括攻击、防御等数据结构、玩家数据结构、玩家组件数据结构
 
-namespace blacksmith_core::domain {
+namespace blacksmith::domain {
 enum class attack_type : std::uint8_t { PHYSICAL, MAGICAL, REAL };
 enum class attack_stage : std::uint8_t { FIRST_TIME_HIT_ARMOR, HIT_BODY, END };
 enum class defense_type : std::uint8_t {
@@ -385,10 +385,13 @@ class profession_component {
     void declare(skill_context &context);
     void add_profession(const profession_skill_set *skill_set);
     void disable_skill(skill skill_name);
+    void disable_skill(const std::vector<skill> &skill_name);
     [[nodiscard]] const std::vector<skill> &authorized_skills() const;
+    bool have_extra_profession_{false};
 
   private:
     std::vector<skill> authorized_skills_;
+    std::bitset<static_cast<size_t>(skill::SIZE)> authorized_bitset_;
     std::vector<std::pair<skill_check_func, skill_declare_func>> passive_funcs_;
 };
 //
@@ -414,4 +417,4 @@ class community {
     skill current_skill_;
 };
 //
-} // namespace blacksmith_core::domain
+} // namespace blacksmith::domain

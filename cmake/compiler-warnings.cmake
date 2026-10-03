@@ -1,7 +1,4 @@
-# Shared compiler warning settings for all targets.
-#
-# Usage: in each sub-project CMakeLists.txt, call:
-#   set_project_warnings(<target_name>)
+# Apply the project's warning level to one target.
 
 function(set_project_warnings target_name)
     if(MSVC)

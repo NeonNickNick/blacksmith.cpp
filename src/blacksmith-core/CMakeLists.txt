@@ -20,7 +20,10 @@ add_library(blacksmith-core STATIC
     include/battle-platform/standard-platform.hpp
     src/battle-platform/standard-platform.cpp
     src/skill-system/bloodsigil.cpp
+    include/blacksmith-master/blacksmith-zero.hpp
 )
+
+target_compile_features(blacksmith-core PUBLIC cxx_std_20)
 
 target_include_directories(blacksmith-core
     PUBLIC

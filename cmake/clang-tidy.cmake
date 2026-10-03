@@ -37,6 +37,7 @@ if(ENABLE_CLANG_TIDY AND CLANG_TIDY_AVAILABLE)
     "-checks=-*,misc-include-cleaner"
     "--warnings-as-errors=misc-include-cleaner"
     "--extra-arg=--driver-mode=cl"
+    "--extra-arg=-EHsc" 
   )
 
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")

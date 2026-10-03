@@ -89,7 +89,7 @@ REGISTER(triplestab, skill::TRIPLE_STAB, REQUIRE(RESOURCE(R_IRON, 1)),
 REGISTER(risingdragon, skill::RISING_DRAGON,
          REQUIRE([](const community &player) {
              auto cnt = count_mark<CHARGE>(player);
-             return cnt < 2 && RESOURCE(R_IRON, cnt > 0 ? 0.0F : 4.0F);
+             return RESOURCE(R_IRON, cnt > 0 ? 0.0F : 4.0F);
          }(player)),
          DSL(if (count_mark<CHARGE>(player) == 0) {
              use_resource<4.0F, R_IRON>(player);

@@ -10,8 +10,8 @@
 #include <skill-system/professions.hpp>
 #include <utility>
 #include <vector>
-using namespace blacksmith_core::skill_system;
-namespace blacksmith_core::domain {
+using namespace blacksmith::skill_system;
+namespace blacksmith::domain {
 // 辅助
 inline int cancel(int &a, int &b) {
     assert(a >= 0 && b >= 0);
@@ -447,4 +447,4 @@ inline void default_update(defense_entity &defense) {
 //
 
 //
-} // namespace blacksmith_core::domain
+} // namespace blacksmith::domain

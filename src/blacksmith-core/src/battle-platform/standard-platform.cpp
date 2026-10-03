@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace blacksmith_core::battle_platform {
+namespace blacksmith::battle_platform {
 standard_pvp::standard_pvp(bool enable_info) {
     enable_info_ = enable_info;
     initialize(player_, enemy_);
@@ -46,13 +46,13 @@ skill_action standard_pvp::player_action() const {
 skill_action standard_pvp::enemy_action() const {
     return enemy_context_.action_.copy();
 }
-skill_context standard_pvp::collect_player_context() {
+skill_context standard_pvp::collect_context(community &com) {
     while (true) {
         std::string skill_name;
         int param = 0;
         skill_context context{
             .action_ = {.skill_ = skill::IRON, .param_ = 0, .next_ = nullptr},
-            .self_ = &player_};
+            .self_ = &com};
         std::string input;
         std::getline(std::cin, input);
         std::vector<std::string> tokens;
@@ -89,25 +89,29 @@ skill_context standard_pvp::collect_player_context() {
         context.action_.param_ = param;
         auto res = check_skill(player_, context);
         switch (res) {
-        case blacksmith_core::domain::check_result::INVALID:
+        case blacksmith::domain::check_result::INVALID:
             std::cout << "Invalid." << '\n';
             continue;
-        case blacksmith_core::domain::check_result::REJECTED:
+        case blacksmith::domain::check_result::REJECTED:
             std::cout << "Rejected." << '\n';
             continue;
-        case blacksmith_core::domain::check_result::SUCCESS:
+        case blacksmith::domain::check_result::SUCCESS:
             std::cout << "Succeed." << '\n';
             return context;
         }
     }
 }
-void standard_pvp::submit_player_context(skill_context &&context) {
-    player_context_ = std::move(context);
+void standard_pvp::submit_player_context(const skill_context &context) {
+    assert(!player_submitted_);
+    player_context_ = {.action_ = context.action_.copy(),
+                       .self_ = context.self_};
     player_submitted_ = true;
     try_pass_round();
 }
-void standard_pvp::submit_enemy_context(skill_context &&context) {
-    enemy_context_ = std::move(context);
+void standard_pvp::submit_enemy_context(const skill_context &context) {
+    assert(!enemy_submitted_);
+    enemy_context_ = {.action_ = context.action_.copy(),
+                      .self_ = context.self_};
     enemy_submitted_ = true;
     try_pass_round();
 }
@@ -138,10 +142,11 @@ void standard_pvp::try_pass_round() {
     declare(player_, player_context_, enemy_, enemy_context_);
     judge(player_, enemy_);
     round_++;
+
     if (enable_info_) {
         print_info(player_, enemy_);
     }
 
     callback_();
 }
-} // namespace blacksmith_core::battle_platform
+} // namespace blacksmith::battle_platform

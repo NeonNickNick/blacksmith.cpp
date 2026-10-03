@@ -28,6 +28,21 @@ install_manifest.txt
 *.app
 *.out
 
+# ---- Python / uv artifacts ----
+python/.venv/
+python/**/.venv/
+python/**/.uv/
+python/**/__pycache__/
+python/**/build/
+python/**/dist/
+python/**/*.egg-info/
+python/**/.pytest_cache/
+python/**/.ruff_cache/
+python/**/.mypy_cache/
+*.py[cod]
+*.pyd
+*.pyi
+
 # ---- Editor / IDE ----
 .idea/
 .vs/
