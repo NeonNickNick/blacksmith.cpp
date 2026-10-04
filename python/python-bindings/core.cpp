@@ -37,9 +37,8 @@ PYBIND11_MODULE(core, m) {
 
     pybind11::class_<zero_test>(m, "ZeroTest")
         .def(pybind11::init())
-        .def("load_param_from", &zero_test::load_param_from)
-        .def("save_param_to", &zero_test::save_param_to)
-        .def("set_param", &zero_test::set_param)
+        .def("set_baseline_param", &zero_test::set_baseline_param)
+        .def("set_test_param", &zero_test::set_test_param)
         .def("win_rate", &zero_test::win_rate);
 }
 } // namespace blacksmith::python_bindings

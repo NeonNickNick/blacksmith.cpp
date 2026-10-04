@@ -27,6 +27,12 @@ get_skill_declare_mapping() {
         mapping{};
     return mapping;
 }
+inline std::array<std::vector<skill>, static_cast<size_t>(skill::SIZE)> &
+get_skill_combo() {
+    static std::array<std::vector<skill>, static_cast<size_t>(skill::SIZE)>
+        combos;
+    return combos;
+}
 DEF_SKILL_SET(common)
 DEF_SKILL_SET(warlock)
 DEF_SKILL_SET(cannon)

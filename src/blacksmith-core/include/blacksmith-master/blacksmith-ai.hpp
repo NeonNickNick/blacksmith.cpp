@@ -10,10 +10,6 @@ template <typename Derived, typename Param> class blacksmith_ai {
         return static_cast<Derived *>(this)->choose_enemy_skill_impl(
             player, enemy, round);
     }
-    float predict_win_rate(const community &player, const community &enemy) {
-        return static_cast<Derived *>(this)->predict_win_rate_impl(player,
-                                                                   enemy);
-    }
 
   private:
     blacksmith_ai() = default;

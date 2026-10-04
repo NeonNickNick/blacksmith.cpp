@@ -3,6 +3,9 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
+#include <skill-system/prior.hpp>
+
+PRIOR_COMBO(skill::CHARGE, {skill::CHARGE, skill::RISING_DRAGON})
 
 BEGIN_PROFESSION
 namespace {

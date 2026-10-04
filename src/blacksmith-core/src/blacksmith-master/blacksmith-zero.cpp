@@ -1,3 +1,4 @@
+#include "skill-system/professions.hpp"
 #include <algorithm>
 #include <blacksmith-master/blacksmith-zero.hpp>
 #include <cmath>
@@ -13,7 +14,7 @@
 using namespace blacksmith::domain;
 namespace blacksmith::blacksmith_master {
 namespace {
-constexpr int ROLLOUT_DEPTH = 5;
+constexpr int ROLLOUT_DEPTH = 0;
 
 bool terminal(const community &player, const community &enemy) {
     return player.focus_.health_.is_dead() || enemy.focus_.health_.is_dead();
@@ -89,15 +90,27 @@ skill_context blacksmith_zero::choose_enemy_skill_impl(const community &player,
                       const_cast<community &>(enemy));
 }
 
-float blacksmith_zero::predict_win_rate_impl(const community &player,
-                                             const community &enemy) {
-    return 1.0F / (1.0F + std::exp(-evaluate(player, enemy, 0) / 10.0F));
-}
-
 std::vector<std::unique_ptr<mcts_node>>
 blacksmith_zero::run_mcts(community &&player, community &&enemy,
                           int iterations) {
-    auto root_actions = get_all_authorized(enemy);
+    auto combos = get_skill_combo()[static_cast<size_t>(enemy.current_skill_)];
+    std::vector<skill_action> combo_actions;
+    if (!combos.empty()) {
+        combos.erase(std::ranges::remove_if(
+                         combos,
+                         [&](const auto &c) {
+                             return enemy.focus_.profession_.check(
+                                        {.action_ = {c}, .self_ = &enemy}) !=
+                                    check_result::SUCCESS;
+                         })
+                         .begin(),
+                     combos.end());
+        for (const auto S : combos) {
+            combo_actions.push_back({S});
+        }
+    }
+    auto root_actions =
+        combos.empty() ? get_all_authorized(enemy) : std::move(combo_actions);
     mcts_node root(std::move(player), std::move(enemy), nullptr,
                    std::move(root_actions), 0);
     for (int i = 0; i < iterations; ++i) {
@@ -153,6 +166,24 @@ blacksmith_zero::run_mcts(community &&player, community &&enemy,
 
 skill_action blacksmith_zero::heuristic(community &com, community & /*other*/) {
     auto actions = get_all_authorized(com);
+    auto combos = get_skill_combo()[static_cast<size_t>(com.current_skill_)];
+    if (!combos.empty()) {
+        combos.erase(std::ranges::remove_if(
+                         combos,
+                         [&](const auto &c) {
+                             return com.focus_.profession_.check(
+                                        {.action_ = {c}, .self_ = &com}) !=
+                                    check_result::SUCCESS;
+                         })
+                         .begin(),
+                     combos.end());
+        if (!combos.empty()) {
+
+            std::uniform_int_distribution<std::size_t> pick(0,
+                                                            combos.size() - 1);
+            return {.skill_ = combos[pick(random_)]};
+        }
+    }
     if (actions.empty()) {
         return {.skill_ = skill::IRON};
     }
@@ -217,7 +248,7 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
                                 int round) const {
     const auto ENEMY_HP = static_cast<float>(enemy.focus_.health_.hp_);
     const auto PLAYER_HP = static_cast<float>(player.focus_.health_.hp_);
-    if (ENEMY_HP <= 0.0F) {
+    if (ENEMY_HP <= 0.0F || round >= 15) {
         return -param_.win_score_;
     }
     if (PLAYER_HP <= 0.0F) {
@@ -225,9 +256,9 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
     }
     auto get_score = [this](const community &player, const community &enemy,
                             int round) {
-        const auto EARLY = round < 8;
-        const auto MID = round >= 8 && round < 15;
-        const auto LATE = round >= 15;
+        const auto EARLY = round < 7;
+        const auto MID = round >= 7 && round < 12;
+        const auto LATE = round >= 12;
 
         // auto player_hp = player.focus_.health_.hp_;
         auto enemy_hp = enemy.focus_.health_.hp_;
@@ -278,11 +309,14 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
         if (EARLY) {
             score -= static_cast<float>(enemy_mhp - enemy_hp) *
                      param_.early_attack_penalty_;
+        } else {
+            score += static_cast<float>(enemy_mhp - enemy_hp) *
+                     param_.early_attack_penalty_;
         }
 
         if (LATE) {
             score -=
-                static_cast<float>(round - 15) * param_.late_round_penalty_;
+                static_cast<float>(round - 12) * param_.late_round_penalty_;
         }
         return score;
     };
@@ -296,17 +330,23 @@ float blacksmith_zero::evaluate(const community &player, const community &enemy,
 std::vector<skill_action>
 blacksmith_zero::get_all_authorized(const community &com) {
     std::vector<skill_action> actions;
-    actions.reserve(8);
+    actions.reserve(7);
     for (const auto &name : com.focus_.profession_.authorized_skills()) {
+
         if (name == skill::STICK || name == skill::DRILL ||
             name == skill::RECOVERY || name == skill::SHIELD ||
             name == skill::THORN_SHIELD || name == skill::MUTE) {
             continue;
         }
-        skill_action ACTION{.skill_ = name, .param_ = 0};
-        auto context = to_context(ACTION, const_cast<community &>(com));
-        if (check_skill(com, context) == check_result::SUCCESS) {
-            actions.emplace_back(std::move(ACTION));
+        for (int i = 0; i < 5; ++i) {
+            skill_action ACTION{.skill_ = name, .param_ = i};
+            auto context = to_context(ACTION, const_cast<community &>(com));
+            if (check_skill(com, context) == check_result::SUCCESS) {
+                actions.emplace_back(std::move(ACTION));
+            }
+            if (name != skill::MAGIC_ATTACK && name != skill::MAGIC_SHIELD) {
+                break;
+            }
         }
     }
     return actions;

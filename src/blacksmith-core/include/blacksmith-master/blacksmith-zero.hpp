@@ -57,8 +57,6 @@ class blacksmith_zero
   public:
     skill_context choose_enemy_skill_impl(const community &player,
                                           const community &enemy, int round);
-    float predict_win_rate_impl(const community &player,
-                                const community &enemy);
 
   private:
     std::vector<std::unique_ptr<mcts_node>>

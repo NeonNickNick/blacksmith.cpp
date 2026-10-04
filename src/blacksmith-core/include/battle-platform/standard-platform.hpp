@@ -148,7 +148,7 @@ template <typename B, typename T> class benchmark_test {
     int cnt_{0};
     std::mutex cnt_mutex_;
     std::mutex cout_mutex_;
-    int win_rate_unit(int /*index*/, int battle_times) {
+    int win_rate_unit(int index, int battle_times) {
         int win_times = 0;
 
         bool enemy_begin{true};
@@ -180,11 +180,11 @@ template <typename B, typename T> class benchmark_test {
                             win_times++;
                         }
 
-                        cnt_++; /*
-                         if (cnt_ % 50 == 0) {
-                             std::cout << "index" << index << ": " << cnt_
-                                       << '\n';
-                         }*/
+                        cnt_++;
+                        if (cnt_ % 5000 == 0) {
+                            std::cout << "index" << index << ": " << cnt_
+                                      << '\n';
+                        }
                         cnt_lock.unlock();
                         platform.reset();
                     }
