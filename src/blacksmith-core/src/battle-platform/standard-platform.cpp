@@ -8,6 +8,7 @@
 #include <functional>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -101,6 +102,58 @@ skill_context standard_pvp::collect_context(community &com) {
         }
     }
 }
+std::optional<skill_context> standard_pvp::to_context(std::string input,
+                                                      community &com) {
+    std::string skill_name;
+    int param = 0;
+    skill_context context{
+        .action_ = {.skill_ = skill::IRON, .param_ = 0, .next_ = nullptr},
+        .self_ = &com};
+    std::vector<std::string> tokens;
+    for (auto sub : input | std::views::split(' ')) {
+        tokens.emplace_back(sub.begin(), sub.end());
+    }
+    if (tokens.size() != 2) {
+        if (tokens.size() == 1) {
+            tokens.emplace_back("0");
+        } else {
+            std::cout << "Wrong format." << '\n';
+            return std::nullopt;
+        }
+    }
+    skill_name = tokens[0];
+    if (!to_int(tokens[1], param)) {
+        std::cout << "Wrong format." << '\n';
+        return std::nullopt;
+    }
+    if (param < 0) {
+        std::cout << "Wrong format." << '\n';
+        return std::nullopt;
+    }
+    auto &mapping = get_string_skill_mapping();
+    auto it = std::ranges::find_if(mapping, [&skill_name](const auto &pair) {
+        return pair.first == skill_name;
+    });
+    if (it == mapping.end()) {
+        std::cout << "Invalid." << '\n';
+        return std::nullopt;
+    }
+    context.action_.skill_ = it->second;
+    context.action_.param_ = param;
+    auto res = check_skill(player_, context);
+    switch (res) {
+    case blacksmith::domain::check_result::INVALID:
+        std::cout << "Invalid." << '\n';
+        return std::nullopt;
+    case blacksmith::domain::check_result::REJECTED:
+        std::cout << "Rejected." << '\n';
+        return std::nullopt;
+    case blacksmith::domain::check_result::SUCCESS:
+        std::cout << "Succeed." << '\n';
+        return context;
+    }
+    return std::nullopt;
+}
 void standard_pvp::submit_player_context(const skill_context &context) {
     assert(!player_submitted_);
     player_context_ = {.action_ = context.action_.copy(),
@@ -145,6 +198,19 @@ void standard_pvp::try_pass_round() {
 
     if (enable_info_) {
         print_info(player_, enemy_);
+        auto &mapping = blacksmith::skill_system::get_string_skill_mapping();
+        const auto &p_action = player_action();
+        const auto &e_action = enemy_action();
+
+        auto pit = std::ranges::find_if(mapping, [&p_action](const auto &pair) {
+            return pair.second == p_action.skill_;
+        });
+        std::cout << "player: " << pit->first << " " << p_action.param_ << '\n';
+
+        auto eit = std::ranges::find_if(mapping, [&e_action](const auto &pair) {
+            return pair.second == e_action.skill_;
+        });
+        std::cout << "enemy: " << eit->first << " " << e_action.param_ << '\n';
     }
 
     callback_();

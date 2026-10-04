@@ -61,6 +61,7 @@ cmake --build out/build/x64-release --config Release
 if errorlevel 1 ( echo [ERROR] CMake build failed & pause & exit /b 1 )
 
 pushd "%ROOT%python\blacksmith"
+uv run python -m pybind11_stubgen core -o .
 echo [INFO] uv build --wheel
 uv build --wheel
 if errorlevel 1 ( echo [ERROR] uv build failed & popd & pause & exit /b 1 )

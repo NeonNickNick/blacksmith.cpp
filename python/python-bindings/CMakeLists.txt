@@ -24,8 +24,8 @@ execute_process(
 find_package(pybind11 CONFIG REQUIRED)
 
 pybind11_add_module(core
-    blacksmith.cpp
-    blacksmith.hpp)
+    core.cpp
+    core.hpp)
 
 target_link_libraries(core PRIVATE blacksmith-core)
 

@@ -1,13 +1,18 @@
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <domain/models.hpp>
 #include <functional>
 // #include <iostream>
+#include "skill-system/professions.hpp"
+#include <iostream>
 #include <mutex>
+#include <optional>
 #include <stop_token>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -29,6 +34,8 @@ class standard_pvp {
     [[nodiscard]] skill_action player_action() const;
     [[nodiscard]] skill_action enemy_action() const;
     [[nodiscard]] skill_context collect_context(community &com);
+    [[nodiscard]] std::optional<skill_context> to_context(std::string input,
+                                                          community &com);
     [[nodiscard]] battle_result result() const;
     void submit_player_context(const skill_context &context);
     void submit_enemy_context(const skill_context &context);
@@ -47,7 +54,71 @@ class standard_pvp {
     bool enemy_submitted_{false};
     void try_pass_round();
 };
+template <typename T, typename P> class simple_pvp_with_ai {
+  private:
+    P param_;
 
+  public:
+    simple_pvp_with_ai(const P &p) { param_ = p; }
+    void play() {
+        bool enemy_begin{true};
+        bool player_begin{true};
+        std::mutex enemy_mutex;
+        std::mutex player_mutex;
+        std::condition_variable enemy_cv;
+        std::condition_variable player_cv;
+        auto &mapping = blacksmith::skill_system::get_string_skill_mapping();
+        blacksmith::battle_platform::standard_pvp platform{};
+
+        platform.set_callback({[&]() {
+            const auto &action = platform.enemy_action();
+
+            auto it =
+                std::ranges::find_if(mapping, [&action](const auto &pair) {
+                    return pair.second == action.skill_;
+                });
+            std::cout << "blacksmith-zero: " << it->first << " "
+                      << action.param_ << '\n';
+
+            {
+                std::unique_lock lock(player_mutex);
+                player_begin = true;
+                player_cv.notify_one();
+            }
+            {
+                std::unique_lock lock(enemy_mutex);
+                enemy_begin = true;
+                enemy_cv.notify_one();
+            }
+        }});
+
+        std::jthread t([&]() {
+            T ai{};
+            ai.param_ = param_;
+            while (true) {
+                {
+                    std::unique_lock lock(enemy_mutex);
+                    enemy_cv.wait(lock, [&]() { return enemy_begin; });
+                    enemy_begin = false;
+                }
+
+                platform.submit_enemy_context(ai.choose_enemy_skill_impl(
+                    platform.player(), platform.enemy(), platform.round()));
+            }
+        });
+
+        std::cout << "Game start." << '\n';
+        while (true) {
+            {
+                std::unique_lock lock(player_mutex);
+                player_cv.wait(lock, [&]() { return player_begin; });
+                player_begin = false;
+            }
+            platform.submit_player_context(
+                platform.collect_context(platform.player()));
+        }
+    }
+};
 template <typename B, typename T> class benchmark_test {
   public:
     template <typename init_func> void set_baseline_initialize(init_func init) {

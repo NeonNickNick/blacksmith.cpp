@@ -1,4 +1,4 @@
-#include "blacksmith.hpp"
+#include "core.hpp"
 #include "battle-platform/standard-platform.hpp"
 #include "blacksmith-master/blacksmith-zero.hpp"
 #include "domain/models.hpp"
@@ -13,17 +13,23 @@ PYBIND11_MODULE(core, m) {
     pybind11::class_<skill_context>(m, "SkillContext").def(pybind11::init());
     pybind11::class_<standard_pvp>(m, "StandardPVP")
         .def(pybind11::init<bool>())
-        .def("player", &standard_pvp::player)
-        .def("enemy", &standard_pvp::enemy)
+        .def("player", &standard_pvp::player,
+             pybind11::return_value_policy::reference_internal)
+        .def("enemy", &standard_pvp::enemy,
+             pybind11::return_value_policy::reference_internal)
         .def("round", &standard_pvp::round)
-        .def("collect_context", &standard_pvp::collect_context)
+        .def("to_context", &standard_pvp::to_context)
         .def("submit_player_context", &standard_pvp::submit_player_context)
         .def("submit_enemy_context", &standard_pvp::submit_enemy_context);
 
     pybind11::class_<blacksmith_zero_param>(m, "BlacksmithZeroParam")
         .def(pybind11::init())
         .def("to_list", &blacksmith_zero_param::to_vector)
-        .def("from_list", &blacksmith_zero_param::from_vector);
+        .def("from_list", &blacksmith_zero_param::from_vector)
+        .def("optimize_mode",
+             [](blacksmith_zero_param &self) { self.mcts_iterations_ = 400; })
+        .def("operate_mode",
+             [](blacksmith_zero_param &self) { self.mcts_iterations_ = 4000; });
     pybind11::class_<blacksmith_zero>(m, "BlacksmithZero")
         .def(pybind11::init())
         .def_readwrite("param", &blacksmith_zero::param_)
