@@ -82,9 +82,7 @@ void execute_attack(community &player, community &enemy, attack_data &attack) {
                     }
                 }
             }
-            int origin = attack.power_;
             d.defender_(enemy, player, d, attack);
-            attack.total_damage_ += (origin - attack.power_);
             for (auto type : AP_TYPES) {
                 if (d.type_ == type) {
                     attack.power_ = static_cast<int>(std::ceil(
