@@ -1,0 +1,67 @@
+{
+  "name": "MLP 10.7 frozen",
+  "artifact_date": "2026-10-08",
+  "base_commit": "4c73b1db87c75e565bb025d058aea1278ca693c4",
+  "rules": "base plus local fixes documented in README; not unmodified main",
+  "sha256": {
+    "policy.bin": "924622d638409435a8bc878ee2a94ef1c71bae4a013849dceba81a698102249c",
+    "checkpoint.pt": "e608999697404038d181b0571fb6aa718656af59c54ea4a84febf33a7649b167",
+    "neural-policy.hpp": "601f99ff134ef2a7106a1136865f0a4055c2a9c07752bb99d70dcba80860a077"
+  },
+  "architecture": {
+    "features": 718,
+    "hidden": [
+      512,
+      512,
+      512
+    ],
+    "activation": "tanh",
+    "actions": 156,
+    "critic_outputs": 1,
+    "training_parameters": 973981
+  },
+  "binary_format": {
+    "endian": "little",
+    "header_u32": [
+      827216706,
+      718,
+      156,
+      512,
+      3
+    ],
+    "layer_order": [
+      "body.0",
+      "body.2",
+      "body.4",
+      "actor"
+    ],
+    "layer_storage": "float32 weights [out,in] followed by bias [out]"
+  },
+  "training": {
+    "algorithm": "masked PPO",
+    "opponent": "tuned AI",
+    "opponent_search_budget": 1000,
+    "seed": 20261007,
+    "environments": 64,
+    "horizon": 64,
+    "updates": 60,
+    "environment_steps": 245760,
+    "completed_games": 18804
+  },
+  "evaluation": {
+    "tuned_ai_games": 1000,
+    "opponent_search_budget": 4000,
+    "wins": 982,
+    "losses": 17,
+    "draws": 1,
+    "capped": 0,
+    "max_rounds": 100,
+    "sampling": "masked softmax stochastic",
+    "assistant_games": 20,
+    "assistant_match_model_wins": 0,
+    "assistant_match_model_losses": 20
+  },
+  "training_after_freeze": false,
+  "default_ai_replaced": false,
+  "rule_changes_in_package": false
+}

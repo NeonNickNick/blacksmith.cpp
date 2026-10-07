@@ -1,0 +1,938 @@
+[
+  {
+    "index": 0,
+    "skill_id": 0,
+    "skill": "IRON",
+    "parameter": 0
+  },
+  {
+    "index": 1,
+    "skill_id": 1,
+    "skill": "STICK",
+    "parameter": 0
+  },
+  {
+    "index": 2,
+    "skill_id": 2,
+    "skill": "DRILL",
+    "parameter": 0
+  },
+  {
+    "index": 3,
+    "skill_id": 3,
+    "skill": "SLASH",
+    "parameter": 0
+  },
+  {
+    "index": 4,
+    "skill_id": 4,
+    "skill": "TEAR",
+    "parameter": 0
+  },
+  {
+    "index": 5,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 0
+  },
+  {
+    "index": 6,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 1
+  },
+  {
+    "index": 7,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 2
+  },
+  {
+    "index": 8,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 3
+  },
+  {
+    "index": 9,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 4
+  },
+  {
+    "index": 10,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 5
+  },
+  {
+    "index": 11,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 6
+  },
+  {
+    "index": 12,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 7
+  },
+  {
+    "index": 13,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 8
+  },
+  {
+    "index": 14,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 9
+  },
+  {
+    "index": 15,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 10
+  },
+  {
+    "index": 16,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 11
+  },
+  {
+    "index": 17,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 12
+  },
+  {
+    "index": 18,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 13
+  },
+  {
+    "index": 19,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 14
+  },
+  {
+    "index": 20,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 15
+  },
+  {
+    "index": 21,
+    "skill_id": 5,
+    "skill": "SHIELD",
+    "parameter": 16
+  },
+  {
+    "index": 22,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 0
+  },
+  {
+    "index": 23,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 1
+  },
+  {
+    "index": 24,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 2
+  },
+  {
+    "index": 25,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 3
+  },
+  {
+    "index": 26,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 4
+  },
+  {
+    "index": 27,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 5
+  },
+  {
+    "index": 28,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 6
+  },
+  {
+    "index": 29,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 7
+  },
+  {
+    "index": 30,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 8
+  },
+  {
+    "index": 31,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 9
+  },
+  {
+    "index": 32,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 10
+  },
+  {
+    "index": 33,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 11
+  },
+  {
+    "index": 34,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 12
+  },
+  {
+    "index": 35,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 13
+  },
+  {
+    "index": 36,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 14
+  },
+  {
+    "index": 37,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 15
+  },
+  {
+    "index": 38,
+    "skill_id": 6,
+    "skill": "THORN_SHIELD",
+    "parameter": 16
+  },
+  {
+    "index": 39,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 0
+  },
+  {
+    "index": 40,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 1
+  },
+  {
+    "index": 41,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 2
+  },
+  {
+    "index": 42,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 3
+  },
+  {
+    "index": 43,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 4
+  },
+  {
+    "index": 44,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 5
+  },
+  {
+    "index": 45,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 6
+  },
+  {
+    "index": 46,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 7
+  },
+  {
+    "index": 47,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 8
+  },
+  {
+    "index": 48,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 9
+  },
+  {
+    "index": 49,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 10
+  },
+  {
+    "index": 50,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 11
+  },
+  {
+    "index": 51,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 12
+  },
+  {
+    "index": 52,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 13
+  },
+  {
+    "index": 53,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 14
+  },
+  {
+    "index": 54,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 15
+  },
+  {
+    "index": 55,
+    "skill_id": 7,
+    "skill": "RECOVERY",
+    "parameter": 16
+  },
+  {
+    "index": 56,
+    "skill_id": 8,
+    "skill": "SPACE",
+    "parameter": 0
+  },
+  {
+    "index": 57,
+    "skill_id": 9,
+    "skill": "TIME",
+    "parameter": 0
+  },
+  {
+    "index": 58,
+    "skill_id": 10,
+    "skill": "REFLECT",
+    "parameter": 0
+  },
+  {
+    "index": 59,
+    "skill_id": 11,
+    "skill": "DELAY_PROTECTION",
+    "parameter": 0
+  },
+  {
+    "index": 60,
+    "skill_id": 12,
+    "skill": "ARMOR12",
+    "parameter": 0
+  },
+  {
+    "index": 61,
+    "skill_id": 13,
+    "skill": "WARLOCK",
+    "parameter": 0
+  },
+  {
+    "index": 62,
+    "skill_id": 14,
+    "skill": "ALCHEMY",
+    "parameter": 0
+  },
+  {
+    "index": 63,
+    "skill_id": 15,
+    "skill": "CANNON",
+    "parameter": 0
+  },
+  {
+    "index": 64,
+    "skill_id": 16,
+    "skill": "DRIVER",
+    "parameter": 0
+  },
+  {
+    "index": 65,
+    "skill_id": 17,
+    "skill": "LANCER",
+    "parameter": 0
+  },
+  {
+    "index": 66,
+    "skill_id": 18,
+    "skill": "BLOODSIGIL",
+    "parameter": 0
+  },
+  {
+    "index": 67,
+    "skill_id": 19,
+    "skill": "MAGIC",
+    "parameter": 0
+  },
+  {
+    "index": 68,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 0
+  },
+  {
+    "index": 69,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 1
+  },
+  {
+    "index": 70,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 2
+  },
+  {
+    "index": 71,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 3
+  },
+  {
+    "index": 72,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 4
+  },
+  {
+    "index": 73,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 5
+  },
+  {
+    "index": 74,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 6
+  },
+  {
+    "index": 75,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 7
+  },
+  {
+    "index": 76,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 8
+  },
+  {
+    "index": 77,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 9
+  },
+  {
+    "index": 78,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 10
+  },
+  {
+    "index": 79,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 11
+  },
+  {
+    "index": 80,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 12
+  },
+  {
+    "index": 81,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 13
+  },
+  {
+    "index": 82,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 14
+  },
+  {
+    "index": 83,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 15
+  },
+  {
+    "index": 84,
+    "skill_id": 20,
+    "skill": "MAGIC_ATTACK",
+    "parameter": 16
+  },
+  {
+    "index": 85,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 0
+  },
+  {
+    "index": 86,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 1
+  },
+  {
+    "index": 87,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 2
+  },
+  {
+    "index": 88,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 3
+  },
+  {
+    "index": 89,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 4
+  },
+  {
+    "index": 90,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 5
+  },
+  {
+    "index": 91,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 6
+  },
+  {
+    "index": 92,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 7
+  },
+  {
+    "index": 93,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 8
+  },
+  {
+    "index": 94,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 9
+  },
+  {
+    "index": 95,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 10
+  },
+  {
+    "index": 96,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 11
+  },
+  {
+    "index": 97,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 12
+  },
+  {
+    "index": 98,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 13
+  },
+  {
+    "index": 99,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 14
+  },
+  {
+    "index": 100,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 15
+  },
+  {
+    "index": 101,
+    "skill_id": 21,
+    "skill": "MAGIC_SHIELD",
+    "parameter": 16
+  },
+  {
+    "index": 102,
+    "skill_id": 22,
+    "skill": "SACRIFICE",
+    "parameter": 0
+  },
+  {
+    "index": 103,
+    "skill_id": 23,
+    "skill": "MUTE",
+    "parameter": 0
+  },
+  {
+    "index": 104,
+    "skill_id": 24,
+    "skill": "MIDASTOUCH",
+    "parameter": 0
+  },
+  {
+    "index": 105,
+    "skill_id": 25,
+    "skill": "STRIKE",
+    "parameter": 0
+  },
+  {
+    "index": 106,
+    "skill_id": 26,
+    "skill": "DOUBLE_STRIKE",
+    "parameter": 0
+  },
+  {
+    "index": 107,
+    "skill_id": 27,
+    "skill": "TRIPLE_STRIKE",
+    "parameter": 0
+  },
+  {
+    "index": 108,
+    "skill_id": 28,
+    "skill": "APSHELL",
+    "parameter": 0
+  },
+  {
+    "index": 109,
+    "skill_id": 29,
+    "skill": "CANNON_BARRIER",
+    "parameter": 0
+  },
+  {
+    "index": 110,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 0
+  },
+  {
+    "index": 111,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 1
+  },
+  {
+    "index": 112,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 2
+  },
+  {
+    "index": 113,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 3
+  },
+  {
+    "index": 114,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 4
+  },
+  {
+    "index": 115,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 5
+  },
+  {
+    "index": 116,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 6
+  },
+  {
+    "index": 117,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 7
+  },
+  {
+    "index": 118,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 8
+  },
+  {
+    "index": 119,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 9
+  },
+  {
+    "index": 120,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 10
+  },
+  {
+    "index": 121,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 11
+  },
+  {
+    "index": 122,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 12
+  },
+  {
+    "index": 123,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 13
+  },
+  {
+    "index": 124,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 14
+  },
+  {
+    "index": 125,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 15
+  },
+  {
+    "index": 126,
+    "skill_id": 30,
+    "skill": "SPACE_ATTACK",
+    "parameter": 16
+  },
+  {
+    "index": 127,
+    "skill_id": 31,
+    "skill": "TIME2SPACE",
+    "parameter": 0
+  },
+  {
+    "index": 128,
+    "skill_id": 32,
+    "skill": "SPACE2TIME",
+    "parameter": 0
+  },
+  {
+    "index": 129,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 0
+  },
+  {
+    "index": 130,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 1
+  },
+  {
+    "index": 131,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 2
+  },
+  {
+    "index": 132,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 3
+  },
+  {
+    "index": 133,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 4
+  },
+  {
+    "index": 134,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 5
+  },
+  {
+    "index": 135,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 6
+  },
+  {
+    "index": 136,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 7
+  },
+  {
+    "index": 137,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 8
+  },
+  {
+    "index": 138,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 9
+  },
+  {
+    "index": 139,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 10
+  },
+  {
+    "index": 140,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 11
+  },
+  {
+    "index": 141,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 12
+  },
+  {
+    "index": 142,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 13
+  },
+  {
+    "index": 143,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 14
+  },
+  {
+    "index": 144,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 15
+  },
+  {
+    "index": 145,
+    "skill_id": 33,
+    "skill": "SPACE_BARRIER",
+    "parameter": 16
+  },
+  {
+    "index": 146,
+    "skill_id": 34,
+    "skill": "SKY_STRIKE",
+    "parameter": 0
+  },
+  {
+    "index": 147,
+    "skill_id": 35,
+    "skill": "TYRANT_DESTURCTION",
+    "parameter": 0
+  },
+  {
+    "index": 148,
+    "skill_id": 36,
+    "skill": "DRAGON_TOOTH",
+    "parameter": 0
+  },
+  {
+    "index": 149,
+    "skill_id": 37,
+    "skill": "TRIPLE_STAB",
+    "parameter": 0
+  },
+  {
+    "index": 150,
+    "skill_id": 38,
+    "skill": "CHARGE",
+    "parameter": 0
+  },
+  {
+    "index": 151,
+    "skill_id": 39,
+    "skill": "RISING_DRAGON",
+    "parameter": 0
+  },
+  {
+    "index": 152,
+    "skill_id": 40,
+    "skill": "BLOOD_BLADE",
+    "parameter": 0
+  },
+  {
+    "index": 153,
+    "skill_id": 41,
+    "skill": "BLOOD_LUST",
+    "parameter": 0
+  },
+  {
+    "index": 154,
+    "skill_id": 42,
+    "skill": "BLOOD_RECOVERY",
+    "parameter": 0
+  },
+  {
+    "index": 155,
+    "skill_id": 43,
+    "skill": "BLOOD_RAGE",
+    "parameter": 0
+  }
+]

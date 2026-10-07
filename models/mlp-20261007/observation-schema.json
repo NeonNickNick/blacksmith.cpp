@@ -1,0 +1,284 @@
+{
+  "features": 718,
+  "dtype": "float32",
+  "array_order": "row-major",
+  "timing": "public state before either current-round action is declared; never include opponent current move",
+  "delay_bin": "clamp delayed_rounds to [0,5]",
+  "layout": [
+    {
+      "name": "round",
+      "offset": 0,
+      "length": 1,
+      "encoding": "current round / 20"
+    },
+    {
+      "name": "seat",
+      "offset": 1,
+      "length": 1,
+      "encoding": "1 if model is first engine player, otherwise 0"
+    },
+    {
+      "name": "self.hp",
+      "offset": 2,
+      "length": 1,
+      "encoding": "current HP / 10"
+    },
+    {
+      "name": "self.mhp",
+      "offset": 3,
+      "length": 1,
+      "encoding": "maximum HP / 10"
+    },
+    {
+      "name": "self.resources",
+      "offset": 4,
+      "length": 5,
+      "encoding": "query(resource_type id 0..4) / 10; IRON and GOLD_IRON queries both return combined iron in this engine"
+    },
+    {
+      "name": "self.ordinary_iron",
+      "offset": 9,
+      "length": 1,
+      "encoding": "largest affordable common-only iron amount in increments of 0.5, divided by 10"
+    },
+    {
+      "name": "self.extra_profession",
+      "offset": 10,
+      "length": 1,
+      "encoding": "boolean have_extra_profession"
+    },
+    {
+      "name": "self.authorized_skills",
+      "offset": 11,
+      "length": 44,
+      "encoding": "binary flags, skill enum order"
+    },
+    {
+      "name": "self.previous_skill",
+      "offset": 55,
+      "length": 45,
+      "encoding": "one-hot; index 44 means no previous move"
+    },
+    {
+      "name": "self.marks",
+      "offset": 100,
+      "length": 60,
+      "encoding": "[mark_id=10, delay=6]; add 0.5 per mark"
+    },
+    {
+      "name": "self.attacks",
+      "offset": 160,
+      "length": 54,
+      "encoding": "[attack_type=3, delay=6, channels=3]; sum power/10, power*AP_factor/20, remaining_rounds/5 (or 1 if infinite)"
+    },
+    {
+      "name": "self.defenses",
+      "offset": 214,
+      "length": 54,
+      "encoding": "[defense_type=9, delay=6]; sum power/10 over active defenses and pending defenses"
+    },
+    {
+      "name": "self.pending_resources",
+      "offset": 268,
+      "length": 42,
+      "encoding": "[resource_type=7, delay=6]; sum power/10"
+    },
+    {
+      "name": "self.callbacks",
+      "offset": 310,
+      "length": 48,
+      "encoding": "[callback_stage=8, delay=6]; add 0.5 per callback"
+    },
+    {
+      "name": "self.active_effect_count",
+      "offset": 358,
+      "length": 1,
+      "encoding": "active effect count / 5"
+    },
+    {
+      "name": "self.pending_effect_count",
+      "offset": 359,
+      "length": 1,
+      "encoding": "pending effect count / 5"
+    },
+    {
+      "name": "opponent.hp",
+      "offset": 360,
+      "length": 1,
+      "encoding": "current HP / 10"
+    },
+    {
+      "name": "opponent.mhp",
+      "offset": 361,
+      "length": 1,
+      "encoding": "maximum HP / 10"
+    },
+    {
+      "name": "opponent.resources",
+      "offset": 362,
+      "length": 5,
+      "encoding": "query(resource_type id 0..4) / 10; IRON and GOLD_IRON queries both return combined iron in this engine"
+    },
+    {
+      "name": "opponent.ordinary_iron",
+      "offset": 367,
+      "length": 1,
+      "encoding": "largest affordable common-only iron amount in increments of 0.5, divided by 10"
+    },
+    {
+      "name": "opponent.extra_profession",
+      "offset": 368,
+      "length": 1,
+      "encoding": "boolean have_extra_profession"
+    },
+    {
+      "name": "opponent.authorized_skills",
+      "offset": 369,
+      "length": 44,
+      "encoding": "binary flags, skill enum order"
+    },
+    {
+      "name": "opponent.previous_skill",
+      "offset": 413,
+      "length": 45,
+      "encoding": "one-hot; index 44 means no previous move"
+    },
+    {
+      "name": "opponent.marks",
+      "offset": 458,
+      "length": 60,
+      "encoding": "[mark_id=10, delay=6]; add 0.5 per mark"
+    },
+    {
+      "name": "opponent.attacks",
+      "offset": 518,
+      "length": 54,
+      "encoding": "[attack_type=3, delay=6, channels=3]; sum power/10, power*AP_factor/20, remaining_rounds/5 (or 1 if infinite)"
+    },
+    {
+      "name": "opponent.defenses",
+      "offset": 572,
+      "length": 54,
+      "encoding": "[defense_type=9, delay=6]; sum power/10 over active defenses and pending defenses"
+    },
+    {
+      "name": "opponent.pending_resources",
+      "offset": 626,
+      "length": 42,
+      "encoding": "[resource_type=7, delay=6]; sum power/10"
+    },
+    {
+      "name": "opponent.callbacks",
+      "offset": 668,
+      "length": 48,
+      "encoding": "[callback_stage=8, delay=6]; add 0.5 per callback"
+    },
+    {
+      "name": "opponent.active_effect_count",
+      "offset": 716,
+      "length": 1,
+      "encoding": "active effect count / 5"
+    },
+    {
+      "name": "opponent.pending_effect_count",
+      "offset": 717,
+      "length": 1,
+      "encoding": "pending effect count / 5"
+    }
+  ],
+  "enums": {
+    "skill": [
+      "IRON",
+      "STICK",
+      "DRILL",
+      "SLASH",
+      "TEAR",
+      "SHIELD",
+      "THORN_SHIELD",
+      "RECOVERY",
+      "SPACE",
+      "TIME",
+      "REFLECT",
+      "DELAY_PROTECTION",
+      "ARMOR12",
+      "WARLOCK",
+      "ALCHEMY",
+      "CANNON",
+      "DRIVER",
+      "LANCER",
+      "BLOODSIGIL",
+      "MAGIC",
+      "MAGIC_ATTACK",
+      "MAGIC_SHIELD",
+      "SACRIFICE",
+      "MUTE",
+      "MIDASTOUCH",
+      "STRIKE",
+      "DOUBLE_STRIKE",
+      "TRIPLE_STRIKE",
+      "APSHELL",
+      "CANNON_BARRIER",
+      "SPACE_ATTACK",
+      "TIME2SPACE",
+      "SPACE2TIME",
+      "SPACE_BARRIER",
+      "SKY_STRIKE",
+      "TYRANT_DESTURCTION",
+      "DRAGON_TOOTH",
+      "TRIPLE_STAB",
+      "CHARGE",
+      "RISING_DRAGON",
+      "BLOOD_BLADE",
+      "BLOOD_LUST",
+      "BLOOD_RECOVERY",
+      "BLOOD_RAGE"
+    ],
+    "mark_id": [
+      "CANNON",
+      "DRIVER",
+      "SKY_STRIKE",
+      "TYRANT_DESTRUCTION",
+      "DRAGON_TOOTH",
+      "TRIPLE_STAB",
+      "CHARGE",
+      "COUNTER_ATTACK",
+      "BLOODSIGIL",
+      "COUNTER_READY"
+    ],
+    "callback_stage": [
+      "BEFORE_APPLY_EFFECT",
+      "BEFORE_TAKE_EFFECT",
+      "BEFORE_APPLY_DEFENSE",
+      "BEFORE_CANCEL_ATTACK",
+      "BEFORE_APPLY_ATTACK",
+      "BEFORE_APPLY_RESOURCE",
+      "BEFORE_ROUND_PASS",
+      "BEFORE_PREPARE_COUNTER_ATTACK"
+    ],
+    "attack_type": [
+      "PHYSICAL",
+      "MAGICAL",
+      "REAL"
+    ],
+    "defense_type": [
+      "PHYSICAL_IMMUNITY",
+      "MAGICAL_IMMUNITY",
+      "PERCENTAGE_REDUCTION",
+      "REAL_REDUCTION",
+      "THORN_REDUCTION",
+      "COMMON_REDUCTION",
+      "STONE_SHELL",
+      "REAL_ARMOR",
+      "COMMON_ARMOR"
+    ],
+    "resource_type": [
+      "IRON",
+      "GOLD_IRON",
+      "SPACE",
+      "TIME",
+      "MAGIC",
+      "HP",
+      "MHP"
+    ]
+  }
+}

@@ -18,7 +18,9 @@ constexpr mark_id COUNTER_ATTACK = mark_id::COUNTER_ATTACK;
 
 template <int power, attack_hook_set hookset = {}, float ap_factor = 1.0F>
 attack_data &lancer_attack(community &player) {
-    auto &base = modify<
+    auto &attacks = player.focus_.turn_context_.attack_context_.datas_;
+    const auto base_index = attacks.size();
+    modify<
         attack_data,
         &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>, ap_factor>,
         [](attack_data &data, community &player) {
@@ -38,7 +40,8 @@ attack_data &lancer_attack(community &player) {
         write_attack<1, REAL, {.delayed_rounds_ = 0}>(player);
         write_attack<1, REAL, {.delayed_rounds_ = 1}>(player);
     }
-    return base;
+    // Additional attacks may reallocate the vector; reacquire the base by index.
+    return attacks[base_index];
 }
 } // namespace
 
