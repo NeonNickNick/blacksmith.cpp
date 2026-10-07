@@ -71,6 +71,16 @@ void execute_attack(community &player, community &enemy, attack_data &attack) {
                     attack.power_ = static_cast<int>(std::ceil(
                         static_cast<float>(attack.power_) * attack.ap_factor_));
                 }
+                auto &ctxs =
+                    enemy.focus_.turn_context_.resource_context_.datas_;
+                int n = static_cast<int>(ctxs.size());
+                for (int i = n - 1; i >= 0; --i) {
+                    if (ctxs[i].type_ == resource_type::GOLD_IRON ||
+                        ctxs[i].type_ == resource_type::MAGIC) {
+                        ctxs.erase(ctxs.begin() + i);
+                        enemy.focus_.resource_.gain(resource_type::IRON, 1.0F);
+                    }
+                }
             }
             int origin = attack.power_;
             d.defender_(enemy, player, d, attack);

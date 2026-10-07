@@ -22,6 +22,12 @@ add_library(blacksmith-core STATIC
     src/skill-system/bloodsigil.cpp
     include/blacksmith-master/blacksmith-zero.hpp
     include/skill-system/prior.hpp
+    src/blacksmith-master/baselines.cpp
+    include/blacksmith-master/baselines.hpp
+    include/blacksmith-master/blacksmith-zero-mini.hpp
+    src/blacksmith-master/blacksmith-zero-mini.cpp
+    include/blacksmith-master/blacksmith-zero-plus.hpp
+    src/blacksmith-master/blacksmith-zero-plus.cpp
 )
 
 target_compile_features(blacksmith-core PUBLIC cxx_std_20)

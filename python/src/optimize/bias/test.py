@@ -10,6 +10,7 @@ from skopt.space import Real
 from skopt.utils import use_named_args
 
 test = bs.ZeroTest()
+lancer_test = bs.LancerTest()
 script_dir = Path(__file__).resolve().parent
 file_path = script_dir / 'data.txt'
 pl = json.loads(file_path.read_text(encoding='utf-8'))
@@ -23,7 +24,7 @@ scale = baseline_param.to_list()
 
 # ============ 1. 搜索空间：19 维连续 [-2, 2] ============
 DIM = 19
-space = [Real(-3.0, 3.0, name=f"x{i}", prior="uniform") for i in range(DIM)]
+space = [Real(-10.0, 10.0, name=f"x{i}", prior="uniform") for i in range(DIM)]
 
 # ============ 2. 你的评估函数（耗时操作） ============
 def evaluate(l:list):
@@ -32,7 +33,10 @@ def evaluate(l:list):
     param.from_list(scaled)
     param.optimize_mode()
     test.set_test_param(param)
-    return 0.5 - test.win_rate(400)
+    lancer_test.set_test_param(param)
+    standard_win_rate = test.win_rate(400)
+    lancer_win_rate = lancer_test.win_rate(400)
+    return -2.0 / (1.0 / (standard_win_rate + 1e-6) + 1.0 / (lancer_win_rate + 1e-6))
     # ==================================
 
 # ============ 3. 包装成 skopt 目标函数 ============
@@ -84,7 +88,7 @@ if __name__ == "__main__":
 
     print("\n===== 最优结果 =====")
     assert result is not None
-    print("最优分数:", 0.5 - result.fun)
+    print("最优分数:", -result.fun)
     print("最优参数:")
     for i, v in enumerate(result.x):
         print(f"  x{i} = {v:+.4f}")

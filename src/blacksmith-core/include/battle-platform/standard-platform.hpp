@@ -181,7 +181,7 @@ template <typename B, typename T> class benchmark_test {
                         }
 
                         cnt_++;
-                        if (cnt_ % 5000 == 0) {
+                        if (cnt_ % 10 == 0) {
                             std::cout << "index" << index << ": " << cnt_
                                       << '\n';
                         }

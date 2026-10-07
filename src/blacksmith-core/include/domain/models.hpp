@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -202,6 +203,7 @@ class health_component {
     void lose_mhp(int loss);
     void gain_mhp(int gain);
     [[nodiscard]] bool is_dead() const;
+    void print_info() const;
 };
 //
 
@@ -239,12 +241,14 @@ class mark_component {
 class resource_component {
     class resource_template {
       public:
+        std::string name_;
         resource_type common_type_;
         resource_type gold_type_;
         float common_{0};
         float gold_{0};
 
-        resource_template(resource_type common_type, resource_type gold_type);
+        resource_template(std::string &&name, resource_type common_type,
+                          resource_type gold_type);
         [[nodiscard]] bool check(float need, bool if_common_only = false) const;
         void use(float need, bool if_common_only = false);
         void gain(resource_type type, float add);
@@ -262,6 +266,7 @@ class resource_component {
     void use(resource_type type, float need, bool if_common_only = false);
     void gain(resource_type type, float gain);
     [[nodiscard]] float query(resource_type type) const;
+    void print_info() const;
 };
 //
 
@@ -297,6 +302,7 @@ enum class skill : uint8_t {
     STICK,
     DRILL,
     SLASH,
+    TEAR,
     SHIELD,
     THORN_SHIELD,
     RECOVERY,

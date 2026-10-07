@@ -14,3 +14,7 @@ test_param.operate_mode()
 test.set_test_param(test_param)
 
 print(test.win_rate(100))
+
+lancer_test = bs.LancerTest()
+lancer_test.set_test_param(test_param)
+print(lancer_test.win_rate(100))

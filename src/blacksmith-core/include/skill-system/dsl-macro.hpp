@@ -16,8 +16,8 @@
     template <int N> void DECLARE_NAME(name)(skill_context & context)
 
 #define BEGIN_PROFESSION                                                       \
-    using namespace blacksmith::domain;                                   \
-    namespace blacksmith::skill_system {                                  \
+    using namespace blacksmith::domain;                                        \
+    namespace blacksmith::skill_system {                                       \
     static std::vector<skill> skills{};                                        \
     static skill_check_func passive_check_func = nullptr;                      \
     static skill_declare_func passive_declare_func = nullptr;
@@ -26,8 +26,7 @@
     static profession_skill_set profession_name##_skill_set{                   \
         skills, passive_check_func, passive_declare_func};                     \
                                                                                \
-    const blacksmith::domain::profession_skill_set *                      \
-    get_##profession_name() {                                                  \
+    const blacksmith::domain::profession_skill_set *get_##profession_name() {  \
         return &profession_name##_skill_set;                                   \
     }                                                                          \
     }
@@ -140,8 +139,8 @@
 #define RESOURCE(type, need) player.focus_.resource_.check(type, need)
 #define RESOURCE_COMMON_ONLY(type, need)                                       \
     player.focus_.resource_.check(type, need, true)
-#define HP(need) (player.focus_.health_.hp_ > (need))
-#define MHP(need) (player.focus_.health_.mhp_ > (need))
+#define HP(need) (player.focus_.health_.hp_ >= (need))
+#define MHP(need) (player.focus_.health_.mhp_ >= (need))
 #define R_HP resource_type::HP
 #define R_MHP resource_type::MHP
 #define R_IRON resource_type::IRON

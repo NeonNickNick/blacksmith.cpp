@@ -7,6 +7,7 @@
 #include <domain/models.hpp>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -43,6 +44,9 @@ void health_component::lose_mhp(int loss) {
 }
 void health_component::gain_mhp(int gain) { mhp_ += gain; }
 bool health_component::is_dead() const { return hp_ <= 0; }
+void health_component::print_info() const {
+    std::cout << "HP: " << hp_ << "/" << mhp_ << '\n';
+}
 //
 
 // 防御组件
@@ -106,7 +110,8 @@ void turn_context_component::round_pass() {
 
 // 资源组件
 resource_component::resource_template::resource_template(
-    resource_type common_type, resource_type gold_type) {
+    std::string &&name, resource_type common_type, resource_type gold_type) {
+    name_ = std::move(name);
     common_type_ = common_type;
     gold_type_ = gold_type;
 }
@@ -144,10 +149,13 @@ void resource_component::resource_template::gain(resource_type type,
 }
 resource_component::resource_component()
     : templates_{
-          resource_template(resource_type::IRON, resource_type::GOLD_IRON),
-          resource_template(resource_type::SPACE, resource_type::SPACE),
-          resource_template(resource_type::TIME, resource_type::TIME),
-          resource_template(resource_type::MAGIC, resource_type::MAGIC)} {}
+          resource_template("Iron", resource_type::IRON,
+                            resource_type::GOLD_IRON),
+          resource_template("Space", resource_type::SPACE,
+                            resource_type::SPACE),
+          resource_template("Time", resource_type::TIME, resource_type::TIME),
+          resource_template("Magic", resource_type::MAGIC,
+                            resource_type::MAGIC)} {}
 
 std::size_t resource_component::template_index(resource_type type) {
     switch (type) {
@@ -180,6 +188,21 @@ void resource_component::gain(resource_type type, float gain) {
 float resource_component::query(resource_type type) const {
     const auto &tmp = templates_[template_index(type)];
     return tmp.common_ + tmp.gold_;
+}
+void resource_component::print_info() const {
+    size_t n = templates_.size();
+    std::cout << "Iron: " << templates_[0].common_ << " ";
+    auto gi = templates_[0].gold_;
+    if (gi > 0) {
+        std::cout << "Iron: " << gi << " ";
+    }
+    for (size_t i = 1; i < n; ++i) {
+        auto c = templates_[i].common_;
+        if (c > 0) {
+            std::cout << templates_[i].name_ << ": " << c << " ";
+        }
+    }
+    std::cout << '\n';
 }
 //
 
@@ -262,9 +285,8 @@ const std::vector<skill> &profession_component::authorized_skills() const {
 // 玩家
 void body::print_info() const {
     std::cout << '\n';
-    std::cout << "HP:" << health_.hp_ << "/" << health_.mhp_ << '\n';
-    std::cout << "IRON:" << resource_.query(resource_type::IRON)
-              << "   SPACE:" << resource_.query(resource_type::SPACE) << '\n';
+    health_.print_info();
+    resource_.print_info();
 }
 //
 } // namespace blacksmith::domain

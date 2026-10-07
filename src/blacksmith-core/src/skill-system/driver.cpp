@@ -24,7 +24,7 @@ PASSIVE_(REQUIRE_(NOTHING),
                     }>(player)))
 
 REGISTER_BATCH(spaceattack, skill::SPACE_ATTACK,
-               REQUIRE_BATCH(RESOURCE(R_SPACE, static_cast<float>(N))),
+               REQUIRE_BATCH(N > 0 && RESOURCE(R_SPACE, static_cast<float>(N))),
                DSL_BATCH(use_resource<R_SPACE>(static_cast<float>(N), player)),
                DSL_BATCH(driver_attack(12 * N, player)))
 

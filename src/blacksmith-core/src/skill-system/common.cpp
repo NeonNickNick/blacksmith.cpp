@@ -29,6 +29,10 @@ REGISTER(slash, skill::SLASH, REQUIRE(RESOURCE(R_IRON, 2.5F);),
          DSL(use_resource<2.5F, R_IRON>(player);),
          DSL(write_attack<5, PHYSICAL>(player);));
 
+REGISTER(tear, skill::TEAR, REQUIRE(RESOURCE(R_SPACE, 1.0F);),
+         DSL(use_resource<1.0F, R_SPACE>(player);),
+         DSL(write_attack<8, PHYSICAL>(player);));
+
 REGISTER_BATCH(shield, skill::SHIELD,
                REQUIRE_BATCH(RESOURCE(R_IRON, 0.0F + (0.5F * N));),
                DSL_BATCH(use_resource<R_IRON>(0.0F + (0.5F * N), player);),
@@ -138,7 +142,12 @@ REGISTER(warlock, skill::WARLOCK, REQUIRE(RESOURCE(R_IRON, 1.0F)),
 
 REGISTER(cannon, skill::CANNON, REQUIRE(RESOURCE(R_IRON, 4.0F)),
          DSL(use_resource<4.0F, R_IRON>(player)),
-         DSL(write_profession<&get_cannon>(player);
+         DSL(write_defense<{.type_ = defense_type::REAL_REDUCTION,
+                            .power_ = 3,
+                            .clock_ = {},
+                            .defender_ = default_reduction,
+                            .update_ = default_update}>(player);
+             write_profession<&get_cannon>(player);
              write_free<[](community &player) {
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;

@@ -8,6 +8,7 @@
 using namespace blacksmith::blacksmith_master;
 namespace blacksmith::python_bindings {
 using zero_test = standard_test<blacksmith_zero, blacksmith_zero_param>;
+using lancer_t = lancer_test<blacksmith_zero, blacksmith_zero_param>;
 PYBIND11_MODULE(core, m) {
     pybind11::class_<community>(m, "Community").def(pybind11::init());
     pybind11::class_<skill_context>(m, "SkillContext").def(pybind11::init());
@@ -34,11 +35,15 @@ PYBIND11_MODULE(core, m) {
         .def(pybind11::init())
         .def_readwrite("param", &blacksmith_zero::param_)
         .def("choose_enemy_skill", &blacksmith_zero::choose_enemy_skill);
-
     pybind11::class_<zero_test>(m, "ZeroTest")
         .def(pybind11::init())
         .def("set_baseline_param", &zero_test::set_baseline_param)
         .def("set_test_param", &zero_test::set_test_param)
         .def("win_rate", &zero_test::win_rate);
+
+    pybind11::class_<lancer_t>(m, "LancerTest")
+        .def(pybind11::init())
+        .def("set_test_param", &lancer_t::set_test_param)
+        .def("win_rate", &lancer_t::win_rate);
 }
 } // namespace blacksmith::python_bindings

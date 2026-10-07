@@ -9,3 +9,4 @@ endfunction()
 
 add_blacksmith_test(test-blacksmith-zero)
 add_blacksmith_test(test-benchmark-test)
+add_blacksmith_test(test-blacksmith-zero-plus)

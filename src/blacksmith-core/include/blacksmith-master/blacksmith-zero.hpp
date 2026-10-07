@@ -43,7 +43,7 @@ struct blacksmith_zero_param {
     float late_time_ = 3;
     float late_default_ = 4;
 
-    float early_attack_penalty_ = 30;
+    float early_attack_penalty_ = 20;
     float extra_profession_bonus_ = 10;
     float late_round_penalty_ = 40;
 

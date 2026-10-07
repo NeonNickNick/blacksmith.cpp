@@ -12,7 +12,6 @@ template <typename Derived, typename Param> class blacksmith_ai {
     }
 
   private:
-    blacksmith_ai() = default;
     friend Derived;
 };
 } // namespace blacksmith::blacksmith_master

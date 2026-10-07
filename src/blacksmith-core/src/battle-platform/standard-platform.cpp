@@ -47,7 +47,7 @@ skill_action standard_pvp::player_action() const {
 skill_action standard_pvp::enemy_action() const {
     return enemy_context_.action_.copy();
 }
-skill_context standard_pvp::collect_context(community &com) {
+skill_context standard_pvp::collect_context(community &com) { // NOLINT
     while (true) {
         std::string skill_name;
         int param = 0;
@@ -88,7 +88,7 @@ skill_context standard_pvp::collect_context(community &com) {
         }
         context.action_.skill_ = it->second;
         context.action_.param_ = param;
-        auto res = check_skill(player_, context);
+        auto res = check_skill(com, context);
         switch (res) {
         case blacksmith::domain::check_result::INVALID:
             std::cout << "Invalid." << '\n';

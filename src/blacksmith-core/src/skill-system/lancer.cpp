@@ -92,11 +92,9 @@ REGISTER(triplestab, skill::TRIPLE_STAB, REQUIRE(RESOURCE(R_IRON, 1)),
 REGISTER(risingdragon, skill::RISING_DRAGON,
          REQUIRE([](const community &player) {
              auto cnt = count_mark<CHARGE>(player);
-             return RESOURCE(R_IRON, cnt > 0 ? 0.0F : 4.0F);
+             return cnt > 0;
          }(player)),
-         DSL(if (count_mark<CHARGE>(player) == 0) {
-             use_resource<4.0F, R_IRON>(player);
-         }),
+         DSL_(),
          DSL(modify<attack_data, &lancer_attack<9>,
                     [](attack_data &data, community &player) {
                         data.power_ += 4 * take_mark<CHARGE>(player);

@@ -2,6 +2,8 @@
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
+#include <skill-system/prior.hpp>
+PRIOR_COMBO(skill::BLOOD_LUST, {skill::BLOOD_BLADE, skill::BLOOD_RAGE})
 
 BEGIN_PROFESSION
 namespace {
