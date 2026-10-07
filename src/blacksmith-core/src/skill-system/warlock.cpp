@@ -32,8 +32,7 @@ REGISTER_BATCH(magicshield, skill::MAGIC_SHIELD,
                DSL_BATCH(magicshield<3>(N, player)))
 
 REGISTER(sacrifice, skill::SACRIFICE, REQUIRE(MHP(2)),
-         DSL(use_resource<1.0F, R_HP>(player);
-             use_resource<1.0F, R_MHP>(player);),
+         DSL(use_resource<1.0F, R_MHP>(player);),
          DSL(write_resource<1.5F, R_IRON>(player);
              write_defense<{.type_ = defense_type::REAL_REDUCTION,
                             .power_ = 7,
