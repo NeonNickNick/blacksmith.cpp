@@ -427,13 +427,11 @@ inline void print_info(const community &player, const community &enemy) {
 inline void default_reduction(community & /*player*/, community & /*enemy*/,
                               defense_entity &defense, attack_data &attack) {
     auto damage = std::min(defense.power_, attack.power_);
-    attack.total_damage_ += damage;
     attack.power_ -= damage;
 }
 inline void thorn_reduction(community &player, community & /*enemy*/,
                             defense_entity &defense, attack_data &attack) {
     auto damage = std::min(defense.power_, attack.power_);
-    attack.total_damage_ += damage;
     attack.power_ -= damage;
     if (attack.type_ == attack_type::PHYSICAL) {
         auto &d = write_attack<0, attack_type::MAGICAL,
@@ -443,8 +441,7 @@ inline void thorn_reduction(community &player, community & /*enemy*/,
 }
 inline void default_armor(community & /*player*/, community & /*enemy*/,
                           defense_entity &defense, attack_data &attack) {
-    auto damage = cancel(defense.power_, attack.power_);
-    attack.total_damage_ += damage;
+    cancel(defense.power_, attack.power_);
 }
 //
 
