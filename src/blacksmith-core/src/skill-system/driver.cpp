@@ -30,11 +30,17 @@ REGISTER_BATCH(spaceattack, skill::SPACE_ATTACK,
 
 REGISTER(space2time, skill::SPACE2TIME, REQUIRE(RESOURCE(R_SPACE, 1)),
          DSL(use_resource<1.0F, R_SPACE>(player)),
-         DSL(write_resource<1.0F, R_TIME>(player); write_mark<DRIVER>(player)))
+         DSL(write_resource<1.0F, R_TIME>(player); write_mark<DRIVER>(player);
+             write_defense<{.type_ = defense_type::REAL_REDUCTION,
+                            .power_ = 3,
+                            .defender_ = default_reduction}>(player)))
 
 REGISTER(time2space, skill::TIME2SPACE, REQUIRE(RESOURCE(R_TIME, 1)),
          DSL(use_resource<1.0F, R_TIME>(player)),
-         DSL(write_resource<1.0F, R_SPACE>(player); write_mark<DRIVER>(player)))
+         DSL(write_resource<1.0F, R_SPACE>(player); write_mark<DRIVER>(player);
+             write_defense<{.type_ = defense_type::REAL_REDUCTION,
+                            .power_ = 3,
+                            .defender_ = default_reduction}>(player)))
 
 REGISTER_BATCH(spacebarrier, skill::SPACE_BARRIER,
                REQUIRE_BATCH(1 <= N && N <= 5 &&

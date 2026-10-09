@@ -56,6 +56,9 @@ void execute_attack(community &player, community &enemy, attack_data &attack) {
     body &main = enemy.focus_;
     bool hit_armor = false;
     if (attack.type_ != attack_type::REAL) {
+        // Resolve defense types in enum order, preserving order within a type.
+        std::ranges::stable_sort(main.defense_.defenses_, {},
+                                 &defense_entity::type_);
         for (auto &d : main.defense_.defenses_) {
             for (auto type : ARMOR_TYPES) {
                 if (d.type_ == type) {
