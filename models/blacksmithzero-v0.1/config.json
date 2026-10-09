@@ -1,0 +1,9 @@
+{
+  "checkpoint": "checkpoint.pt",
+  "device": "cpu",
+  "root_width": 24,
+  "leaf_width": 12,
+  "regret_iterations": 128,
+  "torch_threads": 4,
+  "engine_threads": 6
+}
