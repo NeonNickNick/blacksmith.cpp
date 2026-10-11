@@ -56,5 +56,5 @@ endif()
 
 option(BLACKSMITH_BUILD_BINDINGS "Build the Python bindings" ON)
 if(BLACKSMITH_BUILD_BINDINGS)
-    add_subdirectory(python)
+    add_subdirectory(python/python-bindings)
 endif()
