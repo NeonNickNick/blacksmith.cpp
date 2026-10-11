@@ -1,9 +1,9 @@
-from setuptools import setup
-from setuptools.dist import Distribution
+"""Tag wheels containing CMake-built modules for their actual platform."""
+from setuptools import Distribution, setup
 
 
 class BinaryDistribution(Distribution):
-    def has_ext_modules(self):
+    def has_ext_modules(self) -> bool:
         return True
 
 

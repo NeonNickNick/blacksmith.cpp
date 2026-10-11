@@ -61,7 +61,10 @@ cmake --build out/build/x64-release --config Release
 if errorlevel 1 ( echo [ERROR] CMake build failed & pause & exit /b 1 )
 
 pushd "%ROOT%python\blacksmith"
-uv run python -m pybind11_stubgen core -o .
+uv run python -m pybind11_stubgen blacksmith.core -o ..
+if errorlevel 1 ( echo [ERROR] core stub generation failed & popd & pause & exit /b 1 )
+uv run python -m pybind11_stubgen blacksmith.master -o ..
+if errorlevel 1 ( echo [ERROR] master stub generation failed & popd & pause & exit /b 1 )
 echo [INFO] uv build --wheel
 uv build --wheel
 if errorlevel 1 ( echo [ERROR] uv build failed & popd & pause & exit /b 1 )
@@ -81,7 +84,7 @@ if not defined WHEEL (
 )
 
 echo [INFO] Installing wheel: !WHEEL!
-uv pip install "!WHEEL!"
+uv pip install --reinstall "!WHEEL!"
 if errorlevel 1 ( echo [ERROR] Failed to install wheel & popd & pause & exit /b 1 )
 
 popd

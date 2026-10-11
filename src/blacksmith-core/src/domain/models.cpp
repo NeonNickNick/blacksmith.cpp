@@ -43,7 +43,10 @@ void health_component::lose_mhp(int loss) {
     mhp_ -= loss;
     hp_ = std::min(hp_, mhp_);
 }
-void health_component::gain_mhp(int gain) { mhp_ += gain; }
+void health_component::gain_mhp(int gain) {
+    mhp_ += gain;
+    hp_ += gain;
+}
 bool health_component::is_dead() const { return hp_ <= 0; }
 void health_component::print_info() const {
     std::cout << "HP: " << hp_ << "/" << mhp_ << '\n';
@@ -189,6 +192,14 @@ void resource_component::gain(resource_type type, float gain) {
 float resource_component::query(resource_type type) const {
     const auto &tmp = templates_[template_index(type)];
     return tmp.common_ + tmp.gold_;
+}
+float resource_component::query_common(resource_type type) const {
+    const auto &tmp = templates_[template_index(type)];
+    return tmp.common_;
+}
+float resource_component::query_gold(resource_type type) const {
+    const auto &tmp = templates_[template_index(type)];
+    return tmp.gold_;
 }
 void resource_component::print_info() const {
     size_t n = templates_.size();

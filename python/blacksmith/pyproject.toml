@@ -3,6 +3,7 @@ name = "blacksmith"
 version = "0.1.0"
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "numpy>=2.4.6",
     "pybind11>=3.1.0",
     "pybind11-stubgen>=3.0.0",
     "setuptools>=84.0.0",

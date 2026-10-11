@@ -1,6 +1,7 @@
 # ---- Build output ----
 out/
 build/
+bin/
 cmake-build-*/
 
 # ---- CMake generated files ----
@@ -27,6 +28,17 @@ install_manifest.txt
 *.exe
 *.app
 *.out
+*.bin
+*.pdb
+*.ilk
+*.exp
+
+# ---- Model weights & checkpoints ----
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
 
 # ---- Python / uv artifacts ----
 python/.venv/

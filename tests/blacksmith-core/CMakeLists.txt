@@ -10,3 +10,7 @@ endfunction()
 add_blacksmith_test(test-blacksmith-zero)
 add_blacksmith_test(test-benchmark-test)
 add_blacksmith_test(test-blacksmith-zero-plus)
+add_blacksmith_test(test-master-schema)
+target_include_directories(test-master-schema PRIVATE
+    "${CMAKE_SOURCE_DIR}/python/python-bindings/master"
+)

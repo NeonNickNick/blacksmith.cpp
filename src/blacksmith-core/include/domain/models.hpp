@@ -13,7 +13,7 @@
 // 此头文件定义了游戏领域对象，包括攻击、防御等数据结构、玩家数据结构、玩家组件数据结构
 
 namespace blacksmith::domain {
-enum class attack_type : std::uint8_t { PHYSICAL, MAGICAL, REAL };
+enum class attack_type : std::uint8_t { PHYSICAL, MAGICAL, REAL, SIZE };
 enum class attack_stage : std::uint8_t { FIRST_TIME_HIT_ARMOR, HIT_BODY, END };
 enum class defense_type : std::uint8_t {
     PHYSICAL_IMMUNITY,
@@ -24,7 +24,8 @@ enum class defense_type : std::uint8_t {
     COMMON_REDUCTION,
     STONE_SHELL,
     REAL_ARMOR,
-    COMMON_ARMOR
+    COMMON_ARMOR,
+    SIZE
 };
 enum class resource_type : std::uint8_t {
     IRON,
@@ -32,6 +33,7 @@ enum class resource_type : std::uint8_t {
     SPACE,
     TIME,
     MAGIC,
+    SIZE,
     HP,
     MHP
 };
@@ -266,6 +268,8 @@ class resource_component {
     void use(resource_type type, float need, bool if_common_only = false);
     void gain(resource_type type, float gain);
     [[nodiscard]] float query(resource_type type) const;
+    [[nodiscard]] float query_common(resource_type type) const;
+    [[nodiscard]] float query_gold(resource_type type) const;
     void print_info() const;
 };
 //
@@ -384,6 +388,15 @@ class profession_skill_set {
 //
 enum class check_result : std::uint8_t { SUCCESS, REJECTED, INVALID };
 // 职业组件
+enum class profession_type : uint8_t {
+    NONE,
+    WARLOCK,
+    CANNON,
+    DRIVER,
+    LANCER,
+    BLOODSIGIL,
+    SIZE,
+};
 class profession_component {
   public:
     void invoke_passive(skill_context &context);
@@ -394,6 +407,7 @@ class profession_component {
     void disable_skill(const std::vector<skill> &skill_name);
     [[nodiscard]] const std::vector<skill> &authorized_skills() const;
     bool have_extra_profession_{false};
+    profession_type profession_{profession_type::NONE};
 
   private:
     std::vector<skill> authorized_skills_;

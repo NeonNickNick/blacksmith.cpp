@@ -38,6 +38,7 @@ DEF_SKILL_SET(warlock)
 DEF_SKILL_SET(cannon)
 DEF_SKILL_SET(driver)
 DEF_SKILL_SET(lancer)
+DEF_SKILL_SET(bloodsigil)
 
 DEF_SKILL_SET(alchemy)
 } // namespace blacksmith::skill_system

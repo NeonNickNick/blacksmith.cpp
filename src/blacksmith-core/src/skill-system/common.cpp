@@ -138,6 +138,8 @@ REGISTER(warlock, skill::WARLOCK, REQUIRE(RESOURCE(R_IRON, 1.0F)),
              write_free<[](community &player) {
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;
+                 player.focus_.profession_.profession_ =
+                     profession_type::WARLOCK;
              }>(player)))
 
 REGISTER(cannon, skill::CANNON, REQUIRE(RESOURCE(R_IRON, 4.0F)),
@@ -151,6 +153,8 @@ REGISTER(cannon, skill::CANNON, REQUIRE(RESOURCE(R_IRON, 4.0F)),
              write_free<[](community &player) {
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;
+                 player.focus_.profession_.profession_ =
+                     profession_type::CANNON;
              }>(player)))
 
 REGISTER(driver, skill::DRIVER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
@@ -159,6 +163,8 @@ REGISTER(driver, skill::DRIVER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
              write_free<[](community &player) {
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;
+                 player.focus_.profession_.profession_ =
+                     profession_type::DRIVER;
              }>(player)))
 
 REGISTER(lancer, skill::LANCER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
@@ -167,14 +173,19 @@ REGISTER(lancer, skill::LANCER, REQUIRE(RESOURCE(R_IRON, 3.0F)),
              write_free<[](community &player) {
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;
+                 player.focus_.profession_.profession_ =
+                     profession_type::LANCER;
              }>(player)))
 
 REGISTER(bloodsigil, skill::BLOODSIGIL, REQUIRE(RESOURCE(R_IRON, 7.0F)),
          DSL(use_resource<7.0F, R_IRON>(player)),
-         DSL(write_profession<&get_lancer>(player);
+         DSL(write_profession<&get_bloodsigil>(player);
              write_free<[](community &player) {
+                 player.focus_.health_.gain_mhp(4);
                  player.focus_.profession_.disable_skill(PROFESSION_SKILLS);
                  player.focus_.profession_.have_extra_profession_ = true;
+                 player.focus_.profession_.profession_ =
+                     profession_type::BLOODSIGIL;
                  player.focus_.profession_.disable_skill(skill::STICK);
                  player.focus_.profession_.disable_skill(skill::DRILL);
                  player.focus_.profession_.disable_skill(skill::SLASH);

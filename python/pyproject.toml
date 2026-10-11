@@ -1,21 +1,27 @@
 [project]
-name = "optimize"
+name = "master"
 version = "0.1.0"
-description = "Add your description here"
+description = "master"
 readme = "README.md"
 authors = [
     { name = "Neon", email = "910400024@qq.com" }
 ]
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "blacksmith>=0.1.0",
     "cma>=4.5.0",
     "matplotlib>=3.11.2",
     "numpy>=2.4.6",
     "scikit-optimize>=0.10.2",
+    "torch>=2.14.1",
+    "tqdm>=4.70.1",
 ]
 
+[tool.uv.sources]
+blacksmith = { path = "./blacksmith" }
+
 [project.scripts]
-optimize = "optimize:main"
+master = "master:main"
 
 [build-system]
 requires = ["uv_build>=0.12.22,<0.13.0"]
