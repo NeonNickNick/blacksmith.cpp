@@ -1,5 +1,6 @@
 @echo off
 setlocal
+set "PYTHONUTF8=1"
 pushd "%~dp0"
 if not exist "python\.venv\Scripts\python.exe" (
     echo Python environment is missing. Run build.cmd first.

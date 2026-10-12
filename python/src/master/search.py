@@ -14,6 +14,7 @@ class SearchInfo:
     completed_depth: int = 0
     expanded_nodes: int = 0
     budget_exhausted: bool = False
+    root_candidates: np.ndarray | None = None
 
 
 class NodeBudgetExceeded(RuntimeError):
@@ -31,7 +32,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
     observation, masks = arena.observe()
     root_width = min(width, int(masks.sum(-1).max()))
     root_choices = candidates(model, observation, masks, root_width, rng, device, 0)
-    info = SearchInfo(depth)
+    info = SearchInfo(depth, root_candidates=root_choices.copy())
 
     def evaluate(tree, states, legal, remaining, choices=None, root=False):
         if choices is None:

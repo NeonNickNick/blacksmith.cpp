@@ -8,8 +8,8 @@ C++20 规则引擎、原生 Python 绑定和 Master 神经网络自对弈训练�
 - `python/python-bindings/`：状态编码、批量环境、搜索分支及绑定。
 - `python/src/master/models/`：网络定义与 checkpoint 加载。
 - `python/src/master/train/`：自对弈、课程、搜索和 replay。
-- `python/src/master/play.py`：本地人机对战。
-- `models/blacksmith-master/`：五个 Master 权重，play 每局随机选一个。
+- `python/src/master/play.py`：本地人机对战与赛后复盘。
+- `models/blacksmith-master/`：五个 Master 权重，play 每次运行随机选一个。
 - `out/build/native/`：本地 C++ 构建产物。
 - `tests/`、`python/tests/`：规则、训练和 play 的回归测试。
 
@@ -29,7 +29,12 @@ Windows 运行 `build.cmd`，Linux 运行 `bash build.sh`。
 开局回车或选 `0`：双方 0 iron；选 `1`：玩家 0.5 iron；选 `2`：玩家 1 iron。
 Master 始终为 0 iron。输入技能名加参数，如 `iron 0`、`stick 0`、`shield 2`。
 省略参数默认为 0，参数范围 0～5。不列出技能列表。
-`new` 重开并重新选择模式与模型，`q` 退出。
+每次运行只玩一局。`resign`（或 `认输`）认输，`q` 直接退出。
+正常终局或认输后询问 `Replay the game? [y/N]`，选 `n` 或回车直接退出。
+选 `y` 从位置 0 开始复盘：`1` 查看双方搜索推荐前 3 个动作，`2` 按 `prev/next`
+移动一回合，`3` 从当前状态试玩。试玩中输入 `4` 或 `back` 返回试玩起点，
+不能前后移动；试玩终局或认输也返回起点。复盘中 `q` 退出。
+所有位置都从原开局重放双方动作构建；复盘和试玩保留同一个模型，试玩不修改原棋谱。
 
 每回合显示双方 HP、职业、资源和 Master 的网络预测百分比。
 该预测为预期得分：胜=1、负=0、和=0.5，并包含训练时间折扣。

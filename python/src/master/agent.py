@@ -17,6 +17,7 @@ class Agent:
         self.device = torch.device(device)
         self.model = load(checkpoint).to(self.device).eval()
         self.rng = np.random.default_rng(seed)
+        self.analysis_seed = seed
         self.width, self.leaf_width, self.iterations = width, leaf_width, iterations
         self.search_depth, self.max_nodes, self.batch_cells = search_depth, max_nodes, batch_cells
         self.last_search = None
@@ -37,6 +38,17 @@ class Agent:
         if not np.isfinite(score) or not 0 <= score <= 1:
             raise ValueError('Invalid value-head prediction')
         return score
+
+    def analyze(self, arena: engine.Arena):
+        """Search both sides for review, independently of live action sampling."""
+        if arena.count != 1 or arena.status(0)['outcome']:
+            raise ValueError('Analysis requires one ongoing game')
+        from .search import search as local_search
+        _, policies, info = local_search(self.model, arena,
+            np.random.default_rng(self.analysis_seed), self.device,
+            max(3, self.width), self.leaf_width, self.iterations,
+            self.search_depth or 2, self.max_nodes, self.batch_cells)
+        return policies[0], info
 
     def choose(self, arena: engine.Arena, seat: int = 0) -> int:
         if arena.count != 1 or seat not in (0, 1):
