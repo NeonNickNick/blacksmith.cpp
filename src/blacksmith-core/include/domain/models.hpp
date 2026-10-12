@@ -77,6 +77,7 @@ struct attack_data {
     attack_type type_;
     int power_;
     float ap_factor_;
+    bool interrupt_;
     attack_execute_func executor_;
     int total_damage_;
 };

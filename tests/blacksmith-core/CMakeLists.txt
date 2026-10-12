@@ -11,3 +11,4 @@ add_blacksmith_test(test-master-schema)
 target_include_directories(test-master-schema PRIVATE
     "${CMAKE_SOURCE_DIR}/python/python-bindings/master"
 )
+add_blacksmith_test(pvp)

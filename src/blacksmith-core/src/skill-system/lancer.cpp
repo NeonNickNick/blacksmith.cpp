@@ -16,16 +16,17 @@ constexpr mark_id TRIPLE_STAB = mark_id::TRIPLE_STAB;
 constexpr mark_id CHARGE = mark_id::CHARGE;
 constexpr mark_id COUNTER_ATTACK = mark_id::COUNTER_ATTACK;
 
-template <int power, attack_hook_set hookset = {}, float ap_factor = 1.0F>
+template <int power, attack_hook_set hookset = {}, float ap_factor = 1.0F,
+          bool interrupt = false>
 attack_data &lancer_attack(community &player) {
     auto &attacks = player.focus_.turn_context_.attack_context_.datas_;
     const auto base_index = attacks.size();
-    modify<
-        attack_data,
-        &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>, ap_factor>,
-        [](attack_data &data, community &player) {
-            data.power_ += 2 * take_mark<SKY_STRIKE>(player);
-        }>(player);
+    modify<attack_data,
+           &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>,
+                         ap_factor, interrupt>,
+           [](attack_data &data, community &player) {
+               data.power_ += 2 * take_mark<SKY_STRIKE>(player);
+           }>(player);
     if (take_mark<TYRANT_DESTRUCTION>(player)) {
         write_recovery<2>(player);
     }
@@ -40,18 +41,21 @@ attack_data &lancer_attack(community &player) {
         write_attack<1, REAL, {.delayed_rounds_ = 0}>(player);
         write_attack<1, REAL, {.delayed_rounds_ = 1}>(player);
     }
-    // Additional attacks may reallocate the vector; reacquire the base by index.
+    // Additional attacks may reallocate the vector; reacquire the base by
+    // index.
     return attacks[base_index];
 }
 } // namespace
 
 REGISTER(skystrike, skill::SKY_STRIKE, REQUIRE(RESOURCE(R_IRON, 1)),
          DSL(use_resource<1.0F, R_IRON>(player)),
-         DSL(lancer_attack<3, {.first_time_hit_armor_ =
-                                   [](community &pc, community & /*ec*/,
-                                      attack_data & /*atk*/) {
-                                       write_mark<SKY_STRIKE>(pc);
-                                   }}>(player)))
+         DSL(lancer_attack<3,
+                           {.first_time_hit_armor_ =
+                                [](community &pc, community & /*ec*/,
+                                   attack_data & /*atk*/) {
+                                    write_mark<SKY_STRIKE>(pc);
+                                }},
+                           1.0F, true>(player)))
 
 REGISTER(tyrantdestruction, skill::TYRANT_DESTURCTION,
          REQUIRE(RESOURCE(R_IRON, 1)), DSL(use_resource<1.0F, R_IRON>(player)),
