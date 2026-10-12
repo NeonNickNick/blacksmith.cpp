@@ -54,7 +54,7 @@ std::tuple<float_array, float_array> observations(arena &env) {
     }
     return {values, masks};
 }
-float_array step(arena &env, const int_array &actions) {
+float_array step(arena &env, const int_array &actions, bool reset_finished) {
     if (actions.ndim() != 2 ||
         actions.shape(0) != static_cast<py::ssize_t>(env.games_.size()) ||
         actions.shape(1) != 2)
@@ -86,7 +86,7 @@ float_array step(arena &env, const int_array &actions) {
                 static_cast<float>(game.players_[1].focus_.health_.hp_);
             out[6 * i + 4] = static_cast<float>(role(game.players_[0]));
             out[6 * i + 5] = static_cast<float>(role(game.players_[1]));
-            if (game.outcome())
+            if (game.outcome() && reset_finished)
                 game = state{};
         }
     }
@@ -223,10 +223,36 @@ PYBIND11_MODULE(master, m) {
         .def_property_readonly(
             "count", [](const arena &env) { return env.games_.size(); })
         .def("observe", &observations)
-        .def("step", &step)
+        .def("step", &step, py::arg("actions"),
+             py::arg("reset_finished") = true)
         .def("reset", &arena::reset, py::arg("index"),
              py::arg("prefix") = std::vector<std::array<int, 2>>{},
              py::call_guard<py::gil_scoped_release>())
+        .def("reset_play", &arena::reset_play, py::arg("index"),
+             py::arg("human_seat"), py::arg("iron"),
+             py::call_guard<py::gil_scoped_release>())
+        .def("status", [](const arena &env, int index) {
+            const auto &game = env.games_.at(static_cast<size_t>(index));
+            py::dict result;
+            result["round"] = game.round_;
+            result["outcome"] = game.outcome();
+            py::list players;
+            for (const auto &player : game.players_) {
+                const auto &body = player.focus_;
+                py::dict info;
+                info["hp"] = body.health_.hp_;
+                info["mhp"] = body.health_.mhp_;
+                info["role"] = role(player);
+                info["iron"] = body.resource_.query_common(resource_type::IRON);
+                info["gold_iron"] = body.resource_.query_gold(resource_type::IRON);
+                info["magic"] = body.resource_.query_common(resource_type::MAGIC);
+                info["space"] = body.resource_.query_common(resource_type::SPACE);
+                info["time"] = body.resource_.query_common(resource_type::TIME);
+                players.append(info);
+            }
+            result["players"] = players;
+            return result;
+        }, py::arg("index") = 0)
         .def("metadata", [](const arena &env) {
             int_array result(
                 {static_cast<py::ssize_t>(env.games_.size()), py::ssize_t{3}});
@@ -242,6 +268,8 @@ PYBIND11_MODULE(master, m) {
         });
     py::class_<search_tree>(m, "SearchTree")
         .def(py::init<const arena &>())
+        .def("subset", &search_tree::subset, py::arg("indices"),
+             py::call_guard<py::gil_scoped_release>())
         .def("expand", &expand, py::arg("candidates"),
              py::arg("retain") = true);
 }

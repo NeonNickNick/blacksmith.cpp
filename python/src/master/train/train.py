@@ -2,14 +2,17 @@
 import argparse
 from collections import Counter
 from dataclasses import asdict
+import os
 import hashlib
 import json
 from pathlib import Path
+import signal
 import time
 from typing import Any
 
 import numpy as np
 import torch
+from torch.nn import functional as F
 from blacksmith import master as engine
 
 from master.models import ModelConfig, Policy, checkpoint, load, masked_log_probs
@@ -31,13 +34,20 @@ def run(args: argparse.Namespace) -> None:
         raise ValueError(f"Mixed replay needs batch_size >= {MIN_MIXED_BATCH} and capacity >= {MIN_MIXED_REPLAY}")
     if args.resume and args.initial:
         raise ValueError("Use either --initial or --resume")
+    if (args.max_seconds < 0 or args.max_gradient_steps < 0 or args.lr_time_offset < 0
+            or not 0 <= args.min_lr <= args.lr):
+        raise ValueError("Invalid training budget or minimum learning rate")
     torch.set_num_threads(args.torch_threads)
     torch.manual_seed(args.seed)
     rng = np.random.default_rng(args.seed)
     device = torch.device(args.device)
+    if args.precision == "bf16" and (device.type != "cuda" or not torch.cuda.is_bf16_supported()):
+        raise ValueError("BF16 training requires a compatible CUDA device")
+    torch.set_float32_matmul_precision("high")
     source = args.resume or args.initial
     config = ModelConfig(hidden=args.hidden, depth=args.depth, history_width=args.history_width,
-                         history_layers=args.history_layers, history_heads=args.history_heads)
+                         history_layers=args.history_layers, history_heads=args.history_heads,
+                         backbone=args.backbone, value_head=args.value_head)
     model = (load(source) if source else Policy(config=config)).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     start_update = games = gradients = 0
@@ -46,6 +56,9 @@ def run(args: argparse.Namespace) -> None:
         if saved.get("stage") != "selfplay":
             raise ValueError("--resume requires a self-play checkpoint; use --initial for a model-only checkpoint")
         optimizer.load_state_dict(saved["optimizer"])
+        # Keep momentum but honor the requested learning rate on continuation.
+        for group in optimizer.param_groups:
+            group["lr"] = args.lr
         start_update, games, gradients = saved["update"], saved["games"], saved["gradient_steps"]
     arena = engine.Arena(args.envs, args.threads)
     replay = StratifiedReplay(args.mode, args.replay)
@@ -71,9 +84,29 @@ def run(args: argparse.Namespace) -> None:
     observed_roles: Counter[str] = Counter()
     terminal_roles: Counter[str] = Counter()
     start = time.monotonic()
-    with (output / "selfplay-moves.csv").open("w", encoding="utf-8") as moves, \
-            (output / "starts.jsonl").open("w", encoding="utf-8") as start_log, \
-            (output / "terminals.jsonl").open("w", encoding="utf-8") as terminal_log:
+    torch.save(checkpoint(model, stage="selfplay", update=start_update, games=games,
+                         gradient_steps=gradients, optimizer=optimizer.state_dict(),
+                         config=settings(args)), output / f"master-{start_update:04d}.pt")
+    interrupted = []
+    def request_stop(signum, frame):
+        interrupted.append(signum)
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, request_stop)
+    def stop_reason():
+        if interrupted:
+            return "signal"
+        if args.max_seconds and time.monotonic() - start >= args.max_seconds:
+            return "time_budget"
+        if args.max_gradient_steps and gradients >= args.max_gradient_steps:
+            return "gradient_budget"
+        return None
+    collected = 0
+    def trace_path(name):
+        return output / name if args.record_games else Path(os.devnull)
+
+    with trace_path("selfplay-moves.csv").open("w", encoding="utf-8") as moves, \
+            trace_path("starts.jsonl").open("w", encoding="utf-8") as start_log, \
+            trace_path("terminals.jsonl").open("w", encoding="utf-8") as terminal_log:
         moves.write("update,env,game,round,first_action,second_action,outcome,first_hp,second_hp\n")
 
         def reset(env: int) -> None:
@@ -91,11 +124,16 @@ def run(args: argparse.Namespace) -> None:
             model.eval()
             search_start = time.monotonic()
             for _ in range(args.horizon):
+                if stop_reason():
+                    break
                 observations, masks = arena.observe()
                 roles_before = arena.metadata()[:, 1:]
-                choices, policies = search(model, arena, rng, device, args.width,
-                                           args.leaf_width, args.regret_iterations, .15,
-                                           (observations, masks))
+                with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
+                                    enabled=args.precision == "bf16"):
+                    choices, policies = search(model, arena, rng, device, args.width,
+                                               args.leaf_width, args.regret_iterations, .15,
+                                               (observations, masks))
+                collected += 2 * args.envs
                 for env in range(args.envs):
                     histories[env].append((observations[env].copy(), masks[env].copy(), policies[env].copy()))
                     observed_roles.update(str(int(role)) for role in roles_before[env])
@@ -119,27 +157,48 @@ def run(args: argparse.Namespace) -> None:
                     reset(env)
             search_seconds = time.monotonic() - search_start
             model.train()
+            learner_start = time.monotonic()
             losses: list[list[float]] = []
             ready = replay.ready(args.batch_size)
             if local_update >= args.warmup and ready:
                 for _ in range(args.batches):
+                    if stop_reason():
+                        break
+                    fraction = min(1., gradients / args.max_gradient_steps) if args.max_gradient_steps else 0.
+                    if args.max_seconds:
+                        fraction = max(fraction, min(1., (time.monotonic() - start + args.lr_time_offset)
+                                                      / (args.max_seconds + args.lr_time_offset)))
+                    lr = float(args.min_lr + .5 * (args.lr - args.min_lr) * (1 + np.cos(np.pi * fraction)))
+                    for group in optimizer.param_groups:
+                        group["lr"] = lr
                     batch = replay.sample(rng, args.batch_size)
                     x, masks_t, policy_t, value_t, weights = (torch.as_tensor(array, device=device) for array in batch)
-                    logits, values = model(x)
-                    pl = (-(policy_t * masked_log_probs(logits, masks_t)).sum(-1) * weights).sum()
-                    vl = ((values - value_t).square() * weights).sum()
+                    with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
+                                        enabled=args.precision == "bf16"):
+                        logits, values = model(x, value_logits=model.config.value_head == "sigmoid")
+                        pl = (-(policy_t * masked_log_probs(logits, masks_t)).sum(-1) * weights).sum()
+                        if model.config.value_head == "sigmoid":
+                            target = (value_t + 1) * .5
+                            vl = (F.binary_cross_entropy_with_logits(values.float(), target,
+                                                                     reduction="none") * weights).sum()
+                        else:
+                            vl = ((values.float() - value_t).square() * weights).sum()
                     loss = pl + vl
                     if not torch.isfinite(loss):
                         raise RuntimeError("Nonfinite self-play loss")
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0, error_if_nonfinite=True)
                     optimizer.step()
                     gradients += 1
                     losses.append([pl.item(), vl.item()])
             status = {"update": update, "games": games, "gradient_steps": gradients,
                       "elapsed_seconds": time.monotonic() - start,
                       "search_seconds": search_seconds,
+                      "learner_seconds": time.monotonic() - learner_start,
+                      "collected_player_positions": collected,
+                      "replay_draws": (gradients - (saved["gradient_steps"] if args.resume else 0)) * args.batch_size,
+                      "learning_rate": optimizer.param_groups[0]["lr"],
                       "loss": np.mean(losses, axis=0).tolist() if losses else [],
                       "replay_ready": ready,
                       "pool_sizes": replay.sizes(), "started": dict(started),
@@ -147,14 +206,20 @@ def run(args: argparse.Namespace) -> None:
                       "terminal_roles": dict(terminal_roles)}
             print(json.dumps(status), flush=True)
             write_json(output / "progress.json", status)
-            if update % args.save_every == 0 or local_update == args.updates:
+            ending = stop_reason()
+            if update % args.save_every == 0 or local_update == args.updates or ending:
                 destination = output / f"master-{update:04d}.pt"
+                temporary = destination.with_suffix(".tmp")
                 torch.save(checkpoint(model, stage="selfplay", update=update, games=games,
                            gradient_steps=gradients, optimizer=optimizer.state_dict(),
-                           config=settings(args)), destination)
-                for handle in (moves, start_log, terminal_log):
-                    handle.flush()
+                           config=settings(args)), temporary)
+                temporary.replace(destination)
+            for handle in (moves, start_log, terminal_log):
+                handle.flush()
+            if ending:
+                break
         status.update({"checkpoint": destination.name, "complete": True,
+                       "stop_reason": ending or "update_budget",
                        "unfinished_games_excluded_from_replay": sum(bool(history) for history in histories)})
         write_json(output / "completion.json", status)
 
@@ -162,10 +227,19 @@ def run(args: argparse.Namespace) -> None:
 def configure(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mode", choices=("free", "mixed"), default="mixed")
     parser.add_argument("--bank")
+    parser.add_argument("--record-games", action="store_true", help="Save optional per-move and episode trace logs")
     parser.add_argument("--output", required=True)
     parser.add_argument("--initial")
     parser.add_argument("--resume")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--backbone", choices=("mlp", "residual"), default="mlp")
+    parser.add_argument("--value-head", choices=("tanh", "sigmoid"), default="tanh")
+    parser.add_argument("--precision", choices=("fp32", "bf16"), default="fp32")
+    parser.add_argument("--max-seconds", type=float, default=0)
+    parser.add_argument("--lr-time-offset", type=float, default=0,
+                        help="Elapsed schedule seconds before resume; does not extend the runtime budget")
+    parser.add_argument("--max-gradient-steps", type=int, default=0)
+    parser.add_argument("--min-lr", type=float, default=0)
     for name, default in (("envs", 32), ("threads", 12), ("width", 8), ("leaf-width", 4),
                           ("horizon", 32), ("updates", 1000), ("batches", 24),
                           ("batch-size", 512), ("replay", 131072), ("regret-iterations", 64),

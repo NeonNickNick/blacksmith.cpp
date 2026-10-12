@@ -1,4 +1,5 @@
 """Native schema, history, network and self-play contracts on CPU."""
+import argparse
 import json
 from collections import Counter
 from pathlib import Path
@@ -14,6 +15,7 @@ from master.train.curriculum import action_named, build
 from master.train.replay import Replay, Starts, StratifiedReplay
 from master.train.search import search, solve_matrix
 from master.train.sampling import COURSE_PAIRS, MIN_MIXED_BATCH, MIN_MIXED_REPLAY
+from master.train import train
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -127,6 +129,87 @@ class MasterTests(unittest.TestCase):
         self.assertTrue((policies[masks == 0] == 0).all())
         arena.step(actions)
         self.assertTrue((arena.metadata()[:, 0] == 2).all())
+
+    def test_residual_probability_head_and_legacy_checkpoint(self) -> None:
+        arena = engine.Arena(2, 1)
+        arena.step(np.zeros((2, 2), np.int32))
+        obs, masks = arena.observe()
+        x = torch.from_numpy(obs)
+        model = Policy(config=ModelConfig(hidden=16, depth=4, history_width=16,
+                       history_layers=1, history_heads=2, backbone="residual", value_head="sigmoid"))
+        logits, probability = model(x)
+        torch.testing.assert_close(probability, torch.full((2, 2), .5))
+        _, raw = model(x, value_logits=True)
+        torch.testing.assert_close(raw.sigmoid(), probability)
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(raw,
+                          torch.tensor([[1., 0.], [.5, .5]])) + logits.square().mean()
+        loss.backward()
+        self.assertTrue(all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None))
+        self.assertGreater(float(model.body[2].branch[1].weight.grad.abs().sum()), 0)
+        torch.testing.assert_close(model.signed_values(torch.tensor([0., .5, 1.])),
+                                   torch.tensor([-1., 0., 1.]))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "residual.pt"
+            torch.save(checkpoint(model), path)
+            restored = load(path)
+            for a, b in zip(restored(x), model.eval()(x)):
+                torch.testing.assert_close(a, b)
+            legacy = self.model()
+            payload = checkpoint(legacy)
+            del payload["model_config"]["backbone"]
+            del payload["model_config"]["value_head"]
+            torch.save(payload, path)
+            restored = load(path)
+            self.assertEqual(restored.config.value_head, "tanh")
+            for a, b in zip(restored(x), legacy.eval()(x)):
+                torch.testing.assert_close(a, b)
+        actions, policies = search(model.eval(), arena, np.random.default_rng(42),
+                                    torch.device("cpu"), 2, 1, 8)
+        self.assertTrue((masks[np.arange(2)[:, None], np.arange(2), actions] == 1).all())
+        np.testing.assert_allclose(policies.sum(-1), 1, atol=1e-6)
+
+    def test_training_gradient_budget_and_safe_optimizer_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / 'out') as folder:
+            parser = argparse.ArgumentParser()
+            train.configure(parser)
+            args = parser.parse_args(['--mode', 'free', '--output', str(Path(folder) / 'run'),
+                '--device', 'cpu', '--backbone', 'residual', '--value-head', 'sigmoid',
+                '--hidden', '16', '--depth', '4', '--history-width', '16',
+                '--history-layers', '1', '--history-heads', '2', '--envs', '2',
+                '--threads', '1', '--width', '2', '--leaf-width', '1', '--regret-iterations', '8',
+                '--horizon', '32', '--updates', '100', '--warmup', '1', '--batches', '4',
+                '--batch-size', '16', '--max-gradient-steps', '1', '--max-seconds', '30'])
+            train.run(args)
+            self.assertFalse(list(Path(args.output).glob('*.csv')))
+            self.assertFalse(list(Path(args.output).glob('*.jsonl')))
+            completion = json.loads((Path(args.output) / 'completion.json').read_text())
+            self.assertEqual(completion['stop_reason'], 'gradient_budget')
+            self.assertEqual(completion['gradient_steps'], 1)
+            payload = torch.load(Path(args.output) / completion['checkpoint'], weights_only=True)
+            self.assertIsInstance(payload['optimizer']['param_groups'][0]['lr'], float)
+            optimizer = torch.optim.AdamW(load(Path(args.output) / completion['checkpoint']).parameters())
+            optimizer.load_state_dict(payload['optimizer'])
+            self.assertTrue(optimizer.state)
+            # A free-only continuation retains Adam moments and cumulative steps,
+            # while all newly generated episodes and replay samples are free.
+            previous_checkpoint = Path(args.output) / completion['checkpoint']
+            args.resume = str(previous_checkpoint)
+            args.output = str(Path(folder) / 'free-continuation')
+            args.max_gradient_steps = 2
+            args.lr_time_offset = 10
+            args.record_games = True
+            train.run(args)
+            resumed = json.loads((Path(args.output) / 'completion.json').read_text())
+            self.assertEqual(resumed['gradient_steps'], 2)
+            self.assertGreater(resumed['games'], completion['games'])
+            self.assertEqual(set(resumed['pool_sizes']), {'-1'})
+            starts = [json.loads(row) for row in (Path(args.output) / 'starts.jsonl').read_text().splitlines()]
+            self.assertTrue(all(row['group'] == -1 and row['prefix'] == [] for row in starts))
+            initial = torch.load(Path(args.output) / f"master-{payload['update']:04d}.pt", weights_only=True)
+            final = torch.load(Path(args.output) / resumed['checkpoint'], weights_only=True)
+            for key, state in payload['optimizer']['state'].items():
+                torch.testing.assert_close(initial['optimizer']['state'][key]['exp_avg'], state['exp_avg'])
+                torch.testing.assert_close(final['optimizer']['state'][key]['step'], state['step'] + 1)
 
     @unittest.skipUnless(torch.cuda.is_available(), "CUDA is not available on this host")
     def test_cuda_search_gradient_and_cpu_checkpoint(self) -> None:

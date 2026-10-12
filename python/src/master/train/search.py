@@ -99,7 +99,7 @@ def search(model: Policy, arena: engine.Arena, rng: np.random.Generator,
         indices = active[start:start + 4096]
         states = leaves[indices].reshape(-1, engine.OBSERVATION_LENGTH)
         _, value = model(torch.as_tensor(states, device=device))
-        values[indices] = value.cpu().numpy().reshape(-1, 2)
+        values[indices] = model.signed_values(value).float().cpu().numpy().reshape(-1, 2)
     values = values.reshape(-1, leaf_width, leaf_width, 2)
     payoffs = DISCOUNT * .5 * (values[..., 0] - values[..., 1])
     terminals(payoffs, leaf_outcomes)

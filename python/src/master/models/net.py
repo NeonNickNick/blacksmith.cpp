@@ -1,4 +1,4 @@
-"""Current-state MLP with an optional joint-action history Transformer."""
+"""Shared state encoders, optional history, and a configurable residual trunk."""
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -17,10 +17,14 @@ class ModelConfig:
     history_width: int = 64
     history_layers: int = 2
     history_heads: int = 4
+    backbone: str = "mlp"
+    value_head: str = "tanh"
 
     def __post_init__(self) -> None:
         if self.hidden < 8 or self.depth < 1 or self.history_layers < 0:
             raise ValueError("Invalid MLP dimensions or history layer count")
+        if self.backbone not in ("mlp", "residual") or self.value_head not in ("tanh", "sigmoid"):
+            raise ValueError("Unknown backbone or value head")
         if self.features != engine.OBSERVATION_LENGTH or self.actions != engine.SKILL_NUM:
             raise ValueError("Model dimensions must match the native schema")
         if (self.history_width < 2 or self.history_width % 2 or self.history_heads < 1
@@ -56,6 +60,18 @@ class HistoryEncoder(nn.Module):
         return self.encoder(tokens, src_key_padding_mask=padding)[:, 0]
 
 
+class ResidualBlock(nn.Module):
+    """Pre-normalized residual branch, scaled across the whole trunk."""
+    def __init__(self, width: int, blocks: int) -> None:
+        super().__init__()
+        self.branch = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, width),
+                                    nn.SiLU(), nn.Linear(width, width))
+        self.scale = blocks ** -.5
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x + self.scale * self.branch(x)
+
+
 class Policy(nn.Module):
     def __init__(self, hidden: int = 256, initialize: bool = True,
                  config: ModelConfig | None = None) -> None:
@@ -63,15 +79,21 @@ class Policy(nn.Module):
         self.config = config or ModelConfig(hidden=hidden)
         cfg = self.config
         # Share each field-family encoder between the two player perspectives.
-        self.public = nn.Sequential(nn.Linear(engine.COMMON_ENCODING_LENGTH, cfg.hidden // 2), nn.Tanh())
-        self.profession = nn.Sequential(nn.Linear(engine.PROFESSION_ENCODING_LENGTH, cfg.hidden // 4), nn.Tanh())
+        activation = nn.SiLU if cfg.backbone == "residual" else nn.Tanh
+        self.public = nn.Sequential(nn.Linear(engine.COMMON_ENCODING_LENGTH, cfg.hidden // 2), activation())
+        self.profession = nn.Sequential(nn.Linear(engine.PROFESSION_ENCODING_LENGTH, cfg.hidden // 4), activation())
         self.history = HistoryEncoder(cfg) if cfg.history_layers else None
         inputs = 2 * (cfg.hidden // 2 + cfg.hidden // 4) + 2
         if self.history is not None:
             inputs += cfg.history_width
         layers: list[nn.Module] = []
-        for index in range(cfg.depth):
-            layers.extend((nn.Linear(inputs if index == 0 else cfg.hidden, cfg.hidden), nn.Tanh()))
+        if cfg.backbone == "residual":
+            layers.extend((nn.Linear(inputs, cfg.hidden), nn.SiLU()))
+            layers.extend(ResidualBlock(cfg.hidden, cfg.depth) for _ in range(cfg.depth))
+            layers.append(nn.LayerNorm(cfg.hidden))
+        else:
+            for index in range(cfg.depth):
+                layers.extend((nn.Linear(inputs if index == 0 else cfg.hidden, cfg.hidden), nn.Tanh()))
         self.body = nn.Sequential(*layers)
         self.actor = nn.Linear(cfg.hidden, cfg.actions)
         self.critic = nn.Linear(cfg.hidden, 1)
@@ -88,7 +110,7 @@ class Policy(nn.Module):
             nn.init.orthogonal_(self.actor.weight, .01)
             nn.init.zeros_(self.critic.weight)
 
-    def forward(self, observation: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, observation: Tensor, value_logits: bool = False) -> tuple[Tensor, Tensor]:
         if observation.shape[-1] != self.config.features:
             raise ValueError("Observation dimensions do not match the model")
         shape = observation.shape[:-1]
@@ -103,14 +125,19 @@ class Policy(nn.Module):
             parts.append(self.history(past))
         hidden = self.body(torch.cat(parts, dim=-1))
         logits = self.actor(hidden).reshape(*shape, self.config.actions)
-        values = torch.tanh(self.critic(hidden)).reshape(shape)
+        raw = self.critic(hidden).reshape(shape)
+        values = raw if value_logits else (raw.sigmoid() if self.config.value_head == "sigmoid" else raw.tanh())
         return logits, values
+
+    def signed_values(self, values: Tensor) -> Tensor:
+        """Convert expected score to the zero-sum utility used by search."""
+        return 2 * values - 1 if self.config.value_head == "sigmoid" else values
 
 
 def masked_log_probs(logits: Tensor, masks: Tensor) -> Tensor:
     if logits.shape != masks.shape or not masks.bool().any(-1).all():
         raise ValueError("Every policy row needs at least one legal action")
-    return logits.masked_fill(~masks.bool(), -1e9).log_softmax(-1)
+    return logits.float().masked_fill(~masks.bool(), -1e9).log_softmax(-1)
 
 
 def checkpoint(model: Policy, **metadata: Any) -> dict[str, Any]:
