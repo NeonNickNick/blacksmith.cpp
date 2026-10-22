@@ -1,4 +1,4 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -7,6 +7,8 @@
 #include <domain/models.hpp>
 #include <iostream>
 #include <memory>
+#include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,12 +19,17 @@ bool clap_round_clock::is_ringing() const {
     return remaining_rounds_ > 0 && delayed_rounds_ == 0;
 }
 bool clap_round_clock::is_dead() const { return remaining_rounds_ <= 0; }
+void clap_round_clock::set_dead() {
+    remaining_rounds_ = 0;
+    delayed_rounds_ = 0;
+    is_infinite_ = false;
+}
 void clap_round_clock::round_pass() {
-    if (is_infinite_) {
-        return;
-    }
     if (delayed_rounds_ > 0) {
         delayed_rounds_--;
+        return;
+    }
+    if (is_infinite_) {
         return;
     }
     if (remaining_rounds_ > 0) {
@@ -60,9 +67,9 @@ void defense_component::add(defense_entity &defense) {
     }
     defenses_.push_back(defense);
 }
-void defense_component::round_pass() {
+void defense_component::round_pass(community &player) {
     for (auto &defense : defenses_) {
-        defense.update_(defense);
+        defense.update_(player, defense);
     }
     std::erase_if(defenses_, [](auto &d) { return d.clock_.is_dead(); });
 }
@@ -159,7 +166,25 @@ resource_component::resource_component()
                             resource_type::SPACE),
           resource_template("Time", resource_type::TIME, resource_type::TIME),
           resource_template("Magic", resource_type::MAGIC,
-                            resource_type::MAGIC)} {}
+                            resource_type::MAGIC),
+          resource_template("Cross", resource_type::CROSS,
+                            resource_type::CROSS),
+          resource_template("Dream", resource_type::DREAM,
+                            resource_type::DREAM),
+          resource_template("Spirit", resource_type::SPIRIT,
+                            resource_type::SPIRIT),
+          resource_template("Fire", resource_type::FIRE, resource_type::FIRE),
+          resource_template("Water", resource_type::WATER,
+                            resource_type::WATER),
+          resource_template("Wood", resource_type::WOOD, resource_type::WOOD),
+          resource_template("Earth", resource_type::EARTH,
+                            resource_type::EARTH),
+          resource_template("Bolt", resource_type::BOLT, resource_type::BOLT),
+          resource_template("Jade", resource_type::JADE, resource_type::JADE),
+          resource_template("Crystal", resource_type::CRYSTAL,
+                            resource_type::CRYSTAL),
+          resource_template("CrystalBall", resource_type::CRYSTAL_BALL,
+                            resource_type::CRYSTAL_BALL)} {}
 
 std::size_t resource_component::template_index(resource_type type) {
     switch (type) {
@@ -173,6 +198,10 @@ std::size_t resource_component::template_index(resource_type type) {
     case resource_type::MAGIC:
         return 3;
     default:
+        if (type >= resource_type::CROSS &&
+            type <= resource_type::CRYSTAL_BALL) {
+            return static_cast<std::size_t>(type) - 1;
+        }
         assert(false);
         return 0;
     }
@@ -226,10 +255,10 @@ skill_action skill_action::copy() const {
     return copy;
 }
 
-// 职业技能组
-profession_skill_set::profession_skill_set(const std::vector<skill> &skills,
-                                           skill_check_func passive_check,
-                                           skill_declare_func passive_declare) {
+// 通用技能包
+skill_set::skill_set(const std::vector<skill> &skills,
+                     skill_check_func passive_check,
+                     skill_declare_func passive_declare) {
     for (const auto &skill : skills) {
         authorized_skills_.push_back(skill);
     }
@@ -241,17 +270,21 @@ profession_skill_set::profession_skill_set(const std::vector<skill> &skills,
 }
 //
 
-// 职业组件
-void profession_component::invoke_passive(skill_context &context) {
+// 技能权限组件
+void skill_component::invoke_passive(skill_context &context) {
     for (const auto [check, declare] : passive_funcs_) {
         if (check(context)) {
             declare(context);
         }
     }
 }
-check_result profession_component::check(const skill_context &context) const {
+check_result skill_component::check(const skill_context &context) const {
     const auto NAME = context.action_.skill_;
-    if (!authorized_bitset_.test(static_cast<size_t>(NAME))) {
+    const auto index = static_cast<size_t>(NAME);
+    if (index >= skill_disable_counts_.size() ||
+        skill_disable_counts_[index] > 0 || context.action_.param_ < 0 ||
+        (context.action_.next_ && NAME != skill::ASSOCIATION) ||
+        !skill_system::get_skill_check_mapping()[index]) {
         return check_result::INVALID;
     }
     return skill_system::get_skill_check_mapping()[static_cast<size_t>(NAME)](
@@ -259,37 +292,72 @@ check_result profession_component::check(const skill_context &context) const {
                ? check_result::SUCCESS
                : check_result::REJECTED;
 }
-void profession_component::declare(skill_context &context) {
+void skill_component::declare(skill_context &context) {
     const auto NAME = context.action_.skill_;
-    if (!authorized_bitset_.test(static_cast<size_t>(NAME))) {
+    if (skill_disable_counts_[static_cast<size_t>(NAME)] > 0) {
         assert(false);
     }
     skill_system::get_skill_declare_mapping()[static_cast<size_t>(NAME)](
         context);
 }
-void profession_component::add_profession(
-    const profession_skill_set *skill_set) {
+void skill_component::add_skill_set(const skill_set *skill_set) {
     for (const auto &skill : skill_set->authorized_skills_) {
-        authorized_skills_.push_back(skill);
-        authorized_bitset_.set(static_cast<size_t>(skill));
+        enable_skill(skill);
     }
     const auto [check, declare] = skill_set->passive_func_;
     if (check != nullptr && declare != nullptr) {
         passive_funcs_.emplace_back(check, declare);
     }
 }
-void profession_component::disable_skill(skill skill_name) {
-    std::erase_if(authorized_skills_, [&skill_name](const auto &name) {
-        return name == skill_name;
-    });
-    authorized_bitset_.reset(static_cast<size_t>(skill_name));
+void skill_component::enable_skill(skill skill_name) {
+    auto &count = skill_disable_counts_[static_cast<size_t>(skill_name)];
+    if (count <= 0) {
+        return;
+    }
+    if (--count == 0) {
+        authorized_skills_.push_back(skill_name);
+    }
 }
-void profession_component::disable_skill(const std::vector<skill> &skill_name) {
-    for (const auto S : skill_name) {
+void skill_component::remove_skill_set(const skill_set *skill_set) {
+    disable_skills(skill_set->authorized_skills_);
+    std::erase(passive_funcs_, skill_set->passive_func_);
+}
+void skill_component::lock_all_skills(
+    const std::span<const skill> &except_skills) {
+    for (size_t i = 0; i < skill_disable_counts_.size(); ++i) {
+        disable_skill(static_cast<skill>(i));
+    }
+    for (const auto &skill : except_skills) {
+        enable_skill(skill);
+    }
+}
+void skill_component::release_all_skills(
+    const std::span<const skill> &except_skills) {
+    for (size_t i = 0; i < skill_disable_counts_.size(); ++i) {
+        enable_skill(static_cast<skill>(i));
+    }
+    for (const auto &skill : except_skills) {
+        disable_skill(skill);
+    }
+}
+void skill_component::disable_skill(skill skill_name) {
+    auto &count = skill_disable_counts_[static_cast<size_t>(skill_name)];
+    if (++count == 1) {
+        std::erase(authorized_skills_, skill_name);
+    }
+}
+void skill_component::disable_skills(
+    const std::span<const skill> &skill_names) {
+    for (const auto S : skill_names) {
         disable_skill(S);
     }
 }
-const std::vector<skill> &profession_component::authorized_skills() const {
+void skill_component::enable_skills(const std::span<const skill> &skill_names) {
+    for (const auto S : skill_names) {
+        enable_skill(S);
+    }
+}
+const std::vector<skill> &skill_component::authorized_skills() const {
     return authorized_skills_;
 }
 //
@@ -301,4 +369,31 @@ void body::print_info() const {
     resource_.print_info();
 }
 //
+community::community(community *opponent) : opponent_(opponent) {
+    if (opponent == nullptr || opponent == this) {
+        throw std::invalid_argument("Community requires a distinct opponent");
+    }
+}
+community::community(const community &other)
+    : opponent_(other.opponent_), focus_(other.focus_),
+      current_skill_(other.current_skill_) {
+    history_.reserve(other.history_.size());
+    for (const auto &action : other.history_) {
+        history_.push_back(action.copy());
+    }
+}
+community &community::operator=(const community &other) {
+    if (this != &other) {
+        *this = community(other);
+    }
+    return *this;
+}
+community &community::operator=(community &&other) noexcept {
+    if (this != &other) {
+        focus_ = std::move(other.focus_);
+        current_skill_ = other.current_skill_;
+        history_ = std::move(other.history_);
+    }
+    return *this;
+}
 } // namespace blacksmith::domain

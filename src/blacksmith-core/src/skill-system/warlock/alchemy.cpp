@@ -1,9 +1,9 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 
 REGISTER(midastouch, skill::MIDASTOUCH,
          REQUIRE(RESOURCE_COMMON_ONLY(R_IRON, 1)),

@@ -86,10 +86,10 @@ class Starts:
             for entry in payload["entries"]:
                 first, second = entry["roles"]
                 if (first, second) not in COURSE_PAIRS:
-                    raise ValueError("Curriculum entries must use the five professions")
+                    raise ValueError("Curriculum entries must use active professions")
                 self.pairs.setdefault((first, second), []).append(entry["prefix"])
             if any(pair not in self.pairs for pair in COURSE_PAIRS):
-                raise ValueError("Curriculum bank must cover all 25 ordered profession pairs")
+                raise ValueError(f"Curriculum bank must cover all {len(COURSE_PAIRS)} ordered profession pairs")
 
     def next(self) -> tuple[int, Prefix]:
         course = self.mode == "mixed" and self.started % 10 >= round(10 * FREE_FRACTION)

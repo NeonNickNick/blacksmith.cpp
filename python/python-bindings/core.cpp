@@ -1,5 +1,6 @@
 #include "battle-platform/standard-platform.hpp"
 #include "domain/models.hpp"
+#include <pybind11/attr.h>
 #include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h> // NOLINT
@@ -8,7 +9,10 @@ namespace blacksmith::python_bindings {
 using namespace blacksmith::domain;
 using namespace blacksmith::battle_platform;
 PYBIND11_MODULE(core, m) {
-    pybind11::class_<community>(m, "Community").def(pybind11::init());
+    pybind11::class_<community>(m, "Community")
+        .def(pybind11::init<community *>(),
+             pybind11::arg("opponent").none(false),
+             pybind11::keep_alive<1, 2>());
     pybind11::class_<skill_context>(m, "SkillContext").def(pybind11::init());
     pybind11::class_<standard_pvp>(m, "StandardPVP")
         .def(pybind11::init<bool>())

@@ -5,7 +5,7 @@
 #include <skill-system/prior.hpp>
 PRIOR_COMBO(skill::BLOOD_LUST, {skill::BLOOD_BLADE, skill::BLOOD_RAGE})
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 namespace {
 constexpr mark_id BLOODSIGIL = mark_id::BLOODSIGIL;
 template <int power, float suck_rate>

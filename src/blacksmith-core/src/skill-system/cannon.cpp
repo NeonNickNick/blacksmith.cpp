@@ -1,9 +1,9 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 namespace {
 constexpr mark_id CANNON = mark_id::CANNON;
 template <int power, float ap_factor = 1.0F, bool interrupt = false>

@@ -11,14 +11,60 @@
 using namespace blacksmith::domain;
 using namespace blacksmith::python_bindings::master;
 
+static_assert(static_cast<int>(profession_type::CROSSBOW) == 8);
+static_assert(static_cast<int>(profession_type::SIZE) == 9);
+static_assert(SCHEMA_VERSION == 8);
+static_assert(COMMON_ENCODING_LENGTH == 266);
+static_assert(PROFESSION_ENCODING_LENGTH == 382);
+static_assert(OBSERVATION_LENGTH == 1458);
+static_assert(SKILL_NUM == 266);
+
 namespace {
 void expect(float actual, float expected) {
     if (std::abs(actual - expected) > 1e-6F)
         throw std::runtime_error("Master observation schema mismatch");
 }
+
+void expect_authorized(state &game, skill move, bool expected) {
+    std::array<float, COMMON_ENCODING_LENGTH> common{};
+    encode_common(game.players_[0], common);
+    expect(common[AUTHORIZED_OFFSET + static_cast<size_t>(move)],
+           expected ? 1.0F : 0.0F);
+    if (authorized(game.players_[0], move) != expected ||
+        game.legal(0, action_index(move)) != expected)
+        throw std::runtime_error("Master skill mask ignored a disable layer");
+}
+
+void test_disable_count_encoding() {
+    state permissions;
+    auto &skills = permissions.players_[0].focus_.skills_;
+    expect_authorized(permissions, skill::IRON, true);
+    // Enabling an unlocked skill must not underflow.
+    skills.enable_skill(skill::IRON);
+    skills.disable_skill(skill::IRON);
+    skills.disable_skill(skill::IRON);
+    expect_authorized(permissions, skill::IRON, false);
+
+    auto branch = permissions;
+    auto &branch_skills = branch.players_[0].focus_.skills_;
+    branch_skills.enable_skill(skill::IRON);
+    expect_authorized(branch, skill::IRON, false);
+    branch_skills.enable_skill(skill::IRON);
+    expect_authorized(branch, skill::IRON, true);
+    expect_authorized(permissions, skill::IRON, false);
+
+    skills.enable_skill(skill::IRON);
+    expect_authorized(permissions, skill::IRON, false);
+    skills.enable_skill(skill::IRON);
+    expect_authorized(permissions, skill::IRON, true);
+    branch_skills.disable_skill(skill::IRON);
+    expect_authorized(branch, skill::IRON, false);
+    expect_authorized(permissions, skill::IRON, true);
+}
 } // namespace
 
 int main() {
+    test_disable_count_encoding();
     state game;
     auto &player = game.players_[0];
     auto &enemy = game.players_[1];
@@ -31,14 +77,19 @@ int main() {
     write_defense<{.delayed_rounds_ = 1}>(
         {.type_ = defense_type::REAL_REDUCTION,
          .power_ = 9,
-         .clock_ = {.remaining_rounds_ = 3}},
+         .clock_ = {.remaining_rounds_ = 3},
+         .defender_ = nullptr},
         player);
     write_mark<mark_id::CHARGE, {.delayed_rounds_ = 2, .is_infinite_ = true}>(
+        player);
+    write_mark<mark_id::CRYSTAL_WALL_HIT, {}>(player);
+    write_mark<mark_id::DELAYED_CRYSTAL_WALL_HIT, {.delayed_rounds_ = 1}>(
         player);
     player.focus_.turn_context_.resource_context_.datas_.push_back(
         {.clock_ = {.delayed_rounds_ = 2},
          .type_ = resource_type::MHP,
-         .power_ = 4});
+         .power_ = 4,
+         .executor_ = nullptr});
     const auto observation = encode(game, 0);
     expect(observation[0], .7F);
     expect(observation[COMMON_ENCODING_LENGTH], .9F);
@@ -64,6 +115,15 @@ int main() {
     expect(observation[mark], .5F);
     expect(observation[mark + 1], 0);
     expect(observation[mark + 2], 1);
+    const int wall_hit_mark =
+        2 * COMMON_ENCODING_LENGTH + MARK_OFFSET +
+        static_cast<int>(mark_id::CRYSTAL_WALL_HIT) * DELAY_BINS * CLOCK_LENGTH;
+    expect(observation[wall_hit_mark], .5F);
+    const int delayed_wall_hit_mark =
+        2 * COMMON_ENCODING_LENGTH + MARK_OFFSET +
+        (static_cast<int>(mark_id::DELAYED_CRYSTAL_WALL_HIT) * DELAY_BINS + 1) *
+            CLOCK_LENGTH;
+    expect(observation[delayed_wall_hit_mark], .5F);
     expect(observation[2 * COMMON_ENCODING_LENGTH + PENDING_RESOURCE_OFFSET +
                        (6 * DELAY_BINS + 2) * CLOCK_LENGTH],
            .4F);
@@ -112,4 +172,15 @@ int main() {
            static_cast<float>(profession_type::WARLOCK));
     if (!authorized(professions.players_[0], skill::MIDASTOUCH))
         throw std::runtime_error("Alchemy skill was not acquired");
+    professions.step(action_index(skill::CAULDRON), iron);
+    expect(static_cast<float>(role(professions.players_[0])),
+           static_cast<float>(profession_type::WARLOCK));
+    if (!authorized(professions.players_[0], skill::MAGIC) ||
+        !authorized(professions.players_[0], skill::MIDASTOUCH) ||
+        !authorized(professions.players_[0], skill::FIRE) ||
+        authorized(professions.players_[0], skill::ALCHEMY) ||
+        authorized(professions.players_[0], skill::CAULDRON) ||
+        authorized(professions.players_[1], skill::ALCHEMY))
+        throw std::runtime_error("[equipment_schema] Cauldron changed "
+                                 "profession or equipment permissions");
 }

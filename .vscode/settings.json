@@ -27,7 +27,10 @@
         "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
         "editor.formatOnSave": true
     },
-
+    "[cmake]": {
+        "editor.defaultFormatter": "cheshirekow.cmake-format",
+        "editor.formatOnSave": true
+    },
     // ===== Files =====
     "files.associations": {
         "*.hpp": "cpp",

@@ -7,7 +7,8 @@
 #include <cstddef>
 #include <domain/models.hpp>
 #include <iostream>
-#include <skill-system/professions.hpp>
+#include <limits>
+#include <skill-system/skill-sets.hpp>
 #include <utility>
 #include <vector>
 using namespace blacksmith::skill_system;
@@ -23,8 +24,11 @@ inline int cancel(int &a, int &b) {
 }
 // 初始化
 inline void initialize(community &player, community &enemy) {
-    player.focus_.profession_.add_profession(SKILL_SET(common));
-    enemy.focus_.profession_.add_profession(SKILL_SET(common));
+    assert(&player != &enemy);
+    player.opponent_ = &enemy;
+    enemy.opponent_ = &player;
+    player.focus_.skills_.add_skill_set(SKILL_SET(common));
+    enemy.focus_.skills_.add_skill_set(SKILL_SET(common));
 }
 //
 // executor
@@ -120,6 +124,7 @@ void execute_attack(community &player, community &enemy, attack_data &attack) {
         hook_set.first_time_hit_armor_(player, enemy, attack);
     }
     hook_set.hit_body_(player, enemy, attack);
+    attack.power_ *= attack.body_damage_factor_;
     main.health_.lose_hp(attack.power_);
     attack.total_damage_ += attack.power_;
     hook_set.end_(player, enemy, attack);
@@ -207,14 +212,9 @@ template <mark_id id> inline int count_mark(const community &player) {
         [](const auto &m) { return m.id_ == id; }));
 }
 
-template <profession_func get_profession>
-void write_profession(community &player) {
-    player.focus_.profession_.add_profession(get_profession());
-}
-
-template <void (*free_transformation)(community &player)>
-void write_free(community &player) {
-    free_transformation(player);
+template <skill_set_func get_skill_set>
+void write_skill_set(community &player) {
+    player.focus_.skills_.add_skill_set(get_skill_set());
 }
 
 template <float need, resource_type type, bool common_only = false>
@@ -244,6 +244,13 @@ resource_data &write_resource(community &player) {
     return player.focus_.turn_context_.resource_context_.write(clock, type,
                                                                power, executor);
 }
+template <resource_type type, clap_round_clock clock = {},
+          resource_execute_func executor = &execute_resource>
+resource_data &write_resource(float power, community &player) {
+    return player.focus_.turn_context_.resource_context_.write(clock, type,
+                                                               power, executor);
+}
+
 template <int power> void write_recovery(community &player) {
     player.focus_.health_.gain_hp(power);
 }
@@ -263,16 +270,18 @@ callback_data &write_callback(community &player) {
 // 技能检查及声明
 inline check_result check_skill(const community &player,
                                 const skill_context &context) {
-    return player.focus_.profession_.check(context);
+    return player.focus_.skills_.check(context);
 }
 inline void declare(community &player, skill_context &player_context,
                     community &enemy, skill_context &enemy_context) {
+    player.history_.push_back(player_context.action_.copy());
+    enemy.history_.push_back(enemy_context.action_.copy());
     player.current_skill_ = player_context.action_.skill_;
     enemy.current_skill_ = enemy_context.action_.skill_;
-    player.focus_.profession_.invoke_passive(player_context);
-    enemy.focus_.profession_.invoke_passive(enemy_context);
-    player.focus_.profession_.declare(player_context);
-    enemy.focus_.profession_.declare(enemy_context);
+    player.focus_.skills_.invoke_passive(player_context);
+    enemy.focus_.skills_.invoke_passive(enemy_context);
+    player.focus_.skills_.declare(player_context);
+    enemy.focus_.skills_.declare(enemy_context);
 }
 //
 
@@ -342,15 +351,16 @@ inline void apply_effect(community &player, community &enemy) {
     apply(enemy, player);
 }
 inline void take_effect(community &player, community &enemy) {
-    auto take = [](community &p, community &e) {
-        for (auto &eff : e.focus_.effect_.effects_) {
+    auto take = [](community &player, community &enemy) {
+        for (size_t i = 0; i < player.focus_.effect_.effects_.size(); ++i) {
+            auto &eff = player.focus_.effect_.effects_[i];
             if (eff.clock_.is_ringing()) {
-                eff.take_effect_(p, e, eff);
+                eff.take_effect_(player, enemy, eff);
             }
         }
     };
-    take(player, enemy);
     take(enemy, player);
+    take(player, enemy);
 }
 inline void apply_defense(community &player, community &enemy) {
     auto apply = [](community &p, community &e) {
@@ -387,7 +397,7 @@ inline void apply_resource(community &player, community &enemy) {
 }
 inline void round_pass(community &player, community &enemy) {
     auto apply = [](community &player) {
-        player.focus_.defense_.round_pass();
+        player.focus_.defense_.round_pass(player);
         player.focus_.effect_.round_pass();
         player.focus_.mark_.round_pass();
         player.focus_.turn_context_.round_pass();
@@ -438,7 +448,10 @@ inline void judge(community &player, community &enemy) {
 
     apply_callback(callbacks, callback_stage::BEFORE_ROUND_PASS, player, enemy);
     round_pass(player, enemy);
+
+    apply_callback(callbacks, callback_stage::BEFORE_END, player, enemy);
 }
+
 inline void print_info(const community &player, const community &enemy) {
     std::cout << '\n';
     player.focus_.print_info();
@@ -471,9 +484,40 @@ inline void default_armor(community & /*player*/, community & /*enemy*/,
 }
 //
 
+inline void percentage_reduction(community & /*player*/, community & /*enemy*/,
+                                 defense_entity &defense, attack_data &attack) {
+    const double remaining = attack.power_ * (100.0 - defense.power_) / 100.0;
+    const int rounded = static_cast<int>(std::floor(std::clamp(
+        remaining, 0.0, static_cast<double>(std::numeric_limits<int>::max()))));
+    attack.total_damage_ += std::max(0, attack.power_ - rounded);
+    attack.power_ = rounded;
+}
+inline void physical_immunity(community & /*player*/, community & /*enemy*/,
+                              defense_entity & /*defense*/,
+                              attack_data &attack) {
+    if (attack.type_ == attack_type::PHYSICAL) {
+        attack.power_ = 0;
+    }
+}
+inline void magical_immunity(community & /*player*/, community & /*enemy*/,
+                             defense_entity & /*defense*/,
+                             attack_data &attack) {
+    if (attack.type_ == attack_type::MAGICAL) {
+        attack.power_ = 0;
+    }
+}
+inline void direct_immunity(community & /*player*/, community & /*enemy*/,
+                            defense_entity & /*defense*/, attack_data &attack) {
+    attack.power_ = 0;
+}
 // update_funcs
-inline void default_update(defense_entity &defense) {
+inline void default_update(community & /*player*/, defense_entity &defense) {
     defense.clock_.round_pass();
+}
+inline void armor_update(community & /*player*/, defense_entity &defense) {
+    if (defense.power_ <= 0) {
+        defense.clock_.set_dead();
+    }
 }
 //
 

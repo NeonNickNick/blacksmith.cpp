@@ -1,9 +1,9 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 
 REGISTER(magic, skill::MAGIC, REQUIRE(RESOURCE(R_IRON, 1.0F)),
          DSL(use_resource<1.0F, R_IRON>(player);),
@@ -45,10 +45,10 @@ REGISTER_(mute, skill::MUTE, REQUIRE_(NOTHING), DSL_(),
               effect_target_type::ENEMY,
               effect_entity{
                   .clock_ = {},
-                  .take_effect_ = [](community & /*player*/, community &enemy,
+                  .take_effect_ = [](community &player, community & /*enemy*/,
                                      effect_entity & /*entity*/) {
                       std::erase_if(
-                          enemy.focus_.turn_context_.resource_context_.datas_,
+                          player.focus_.turn_context_.resource_context_.datas_,
                           [](resource_data &r) {
                               return r.type_ == R_TIME || r.type_ == R_SPACE;
                           });
@@ -56,9 +56,7 @@ REGISTER_(mute, skill::MUTE, REQUIRE_(NOTHING), DSL_(),
 
 REGISTER(alchemy, skill::ALCHEMY, REQUIRE(RESOURCE(R_IRON, 2.5F)),
          DSL(use_resource<2.5F, R_IRON>(player)),
-         DSL(write_profession<&get_alchemy>(player);
-             write_free<[](community &player) {
-                 player.focus_.profession_.disable_skill(skill::ALCHEMY);
-             }>(player)))
+         DSL(write_skill_set<&get_alchemy>(player);
+             player.focus_.skills_.disable_skill(skill::ALCHEMY)))
 
 END(warlock)

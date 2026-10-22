@@ -1,9 +1,9 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 namespace {
 constexpr mark_id DRIVER = mark_id::DRIVER;
 void driver_attack(int power, community &player) {

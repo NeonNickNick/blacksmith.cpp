@@ -1,0 +1,109 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "BDSL",
+  "scopeName": "source.bdsl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#blocks" },
+    { "include": "#parameters" },
+    { "include": "#statements" },
+    { "include": "#magic-fields" },
+    { "include": "#mark-variables" },
+    { "include": "#resources" },
+    { "include": "#types" },
+    { "include": "#functions" },
+    { "include": "#constants" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.bdsl", "begin": "//", "end": "$" },
+        { "name": "comment.block.bdsl", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.bdsl",
+      "begin": "\"",
+      "end": "\"|$",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.bdsl" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.bdsl" } },
+      "patterns": [
+        { "name": "constant.character.escape.bdsl", "match": "\\\\[\\\"\\\\nrt]" },
+        { "name": "invalid.illegal.escape.bdsl", "match": "\\\\." }
+      ]
+    },
+    "blocks": {
+      "name": "keyword.control.block.bdsl",
+      "match": "(\\[)(skillset|skill|check|declare)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.keyword.begin.bdsl" },
+        "3": { "name": "punctuation.definition.keyword.end.bdsl" }
+      }
+    },
+    "parameters": {
+      "name": "variable.parameter.bdsl",
+      "match": "(\\[)(name|id|type|power|delay|remain|isinfinite|ap|interrupt|clock|analyzer|resource|target)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.parameter.begin.bdsl" },
+        "3": { "name": "punctuation.definition.parameter.end.bdsl" }
+      }
+    },
+    "statements": {
+      "patterns": [
+        { "name": "keyword.control.flow.bdsl", "match": "<(if|else|repeat)>" },
+        { "name": "keyword.control.require.bdsl", "match": "<require>" },
+        { "name": "keyword.other.action.bdsl", "match": "<(use|recover|attack|defense|resource|takemark|countmark|addmark|equip|disable|effect)>" }
+      ]
+    },
+    "magic-fields": {
+      "patterns": [
+        { "name": "variable.language.skill-parameter.bdsl", "match": "\\b__N__\\b" },
+        { "name": "variable.language.repeat-index.bdsl", "match": "\\b__index__\\b" }
+      ]
+    },
+    "mark-variables": { "name": "variable.other.mark.bdsl", "match": "@[A-Za-z_][A-Za-z_0-9]*@" },
+    "resources": {
+      "name": "support.type.resource.bdsl",
+      "match": "\\b(HP|MHP|Iron|CommonIron|GoldIron|Space|Time|Magic|Cross|Dream|Spirit|Fire|Water|Wood|Earth|Bolt|Jade|Crystal|CrystalBall)\\b"
+    },
+    "types": {
+      "patterns": [
+        { "name": "storage.type.attack.bdsl", "match": "\\b(Physical|Magical|Real)\\b" },
+        { "name": "storage.type.defense.bdsl", "match": "\\b(CommonReduction|RealReduction|ThornReduction|PercentageReduction|CommonArmor|RealArmor|PhysicalImmunity|MagicalImmunity)\\b" },
+        { "name": "support.function.analyzer.bdsl", "match": "\\bDefaultReduction\\b" },
+        { "name": "storage.type.effect.bdsl", "match": "\\bEraseResource\\b" },
+        { "name": "constant.other.target.bdsl", "match": "\\b(Enemy|Self)\\b" }
+      ]
+    },
+    "functions": { "name": "support.function.bdsl", "match": "\\b(count|min|max|abs|floor|ceil)\\b(?=\\s*\\()" },
+    "constants": {
+      "patterns": [
+        { "name": "constant.language.boolean.bdsl", "match": "\\b(true|false)\\b" },
+        { "name": "constant.other.enum.bdsl", "match": "\\b[A-Z][A-Z_0-9]*\\b" }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.bdsl",
+      "match": "(?<![A-Za-z_0-9.])(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?(?![A-Za-z_0-9.])"
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.arrow.bdsl", "match": "->" },
+        { "name": "keyword.operator.comparison.bdsl", "match": ">=|<=|==|!=|[<>]" },
+        { "name": "keyword.operator.logical.bdsl", "match": "&&|\\|\\||!" },
+        { "name": "keyword.operator.arithmetic.bdsl", "match": "[+*/%^-]" }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.section.block.bdsl", "match": "[{}]" },
+        { "name": "punctuation.section.group.bdsl", "match": "[()]" },
+        { "name": "punctuation.separator.arguments.bdsl", "match": "," }
+      ]
+    }
+  }
+}

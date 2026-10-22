@@ -1,4 +1,4 @@
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include <algorithm>
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
@@ -7,7 +7,7 @@
 
 PRIOR_COMBO(skill::CHARGE, {skill::CHARGE, skill::RISING_DRAGON})
 
-BEGIN_PROFESSION
+BEGIN_SKILL_SET
 namespace {
 constexpr mark_id SKY_STRIKE = mark_id::SKY_STRIKE;
 constexpr mark_id TYRANT_DESTRUCTION = mark_id::TYRANT_DESTRUCTION;
@@ -20,7 +20,7 @@ template <int power, attack_hook_set hookset = {}, float ap_factor = 1.0F,
           bool interrupt = false>
 attack_data &lancer_attack(community &player) {
     auto &attacks = player.focus_.turn_context_.attack_context_.datas_;
-    const auto base_index = attacks.size();
+    const auto BASE_INDEX = attacks.size();
     modify<attack_data,
            &write_attack<power, PHYSICAL, {}, &execute_attack<hookset>,
                          ap_factor, interrupt>,
@@ -34,7 +34,8 @@ attack_data &lancer_attack(community &player) {
         write_defense<{.type_ = defense_type::COMMON_ARMOR,
                        .power_ = 2,
                        .clock_ = {.is_infinite_ = true},
-                       .defender_ = default_armor}>(player);
+                       .defender_ = default_armor,
+                       .update_ = armor_update}>(player);
     }
     if (take_mark<TRIPLE_STAB>(player)) {
         use_resource<1.0F, R_MHP>(player);
@@ -43,7 +44,7 @@ attack_data &lancer_attack(community &player) {
     }
     // Additional attacks may reallocate the vector; reacquire the base by
     // index.
-    return attacks[base_index];
+    return attacks[BASE_INDEX];
 }
 } // namespace
 

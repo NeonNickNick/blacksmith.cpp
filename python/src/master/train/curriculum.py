@@ -21,7 +21,7 @@ class Entry:
 
 
 def action_named(name: str) -> int:
-    return next(index for index, label in enumerate(engine.ACTION_NAMES) if label.casefold() == name.casefold() + " 0")
+    return engine.parse_action(name)
 
 
 def build(per_pair: int = 64, seed: int = 42, threads: int = 1) -> list[Entry]:
@@ -51,14 +51,16 @@ def build(per_pair: int = 64, seed: int = 42, threads: int = 1) -> list[Entry]:
                 prepared = (current == (first, second)).all(-1) & (turn >= waits.max(-1))
                 beginning = live & prepared & (end < 0)
                 end[beginning] = turn + extra[beginning]
-                complete = live & (end == turn)
+                finished = live & (end == turn)
+                # DreamWake can restore a pre-profession state during opening construction.
+                complete = finished & (current == (first, second)).all(-1)
                 for env in np.flatnonzero(complete):
                     key = observations[env, 0].tobytes()
                     if key not in seen and made < per_pair:
                         seen.add(key)
                         entries.append(Entry((first, second), prefixes[env].copy()))
                         made += 1
-                live[complete] = False
+                live[finished] = False
                 if not live.any() or made == per_pair:
                     break
                 choices = np.full((count, 2), iron, np.int32)

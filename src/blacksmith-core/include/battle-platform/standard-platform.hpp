@@ -36,8 +36,8 @@ class standard_pvp {
     bool enable_info_{true};
     std::mutex mtx_;
     std::function<void()> callback_{[]() {}};
-    community player_{};
-    community enemy_{};
+    community player_{&enemy_};
+    community enemy_{&player_};
     int round_{1};
     skill_context player_context_{};
     skill_context enemy_context_{};

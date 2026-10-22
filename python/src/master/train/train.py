@@ -46,8 +46,7 @@ def run(args: argparse.Namespace) -> None:
     torch.set_float32_matmul_precision("high")
     source = args.resume or args.initial
     config = ModelConfig(hidden=args.hidden, depth=args.depth, history_width=args.history_width,
-                         history_layers=args.history_layers, history_heads=args.history_heads,
-                         backbone=args.backbone, value_head=args.value_head)
+                         history_layers=args.history_layers, history_heads=args.history_heads)
     model = (load(source) if source else Policy(config=config)).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     start_update = games = gradients = 0
@@ -175,14 +174,11 @@ def run(args: argparse.Namespace) -> None:
                     x, masks_t, policy_t, value_t, weights = (torch.as_tensor(array, device=device) for array in batch)
                     with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
                                         enabled=args.precision == "bf16"):
-                        logits, values = model(x, value_logits=model.config.value_head == "sigmoid")
+                        logits, values = model(x, value_logits=True)
                         pl = (-(policy_t * masked_log_probs(logits, masks_t)).sum(-1) * weights).sum()
-                        if model.config.value_head == "sigmoid":
-                            target = (value_t + 1) * .5
-                            vl = (F.binary_cross_entropy_with_logits(values.float(), target,
-                                                                     reduction="none") * weights).sum()
-                        else:
-                            vl = ((values.float() - value_t).square() * weights).sum()
+                        target = (value_t + 1) * .5
+                        vl = (F.binary_cross_entropy_with_logits(values.float(), target,
+                                                                 reduction="none") * weights).sum()
                     loss = pl + vl
                     if not torch.isfinite(loss):
                         raise RuntimeError("Nonfinite self-play loss")
@@ -232,8 +228,6 @@ def configure(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--initial")
     parser.add_argument("--resume")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--backbone", choices=("mlp", "residual"), default="mlp")
-    parser.add_argument("--value-head", choices=("tanh", "sigmoid"), default="tanh")
     parser.add_argument("--precision", choices=("fp32", "bf16"), default="fp32")
     parser.add_argument("--max-seconds", type=float, default=0)
     parser.add_argument("--lr-time-offset", type=float, default=0,
@@ -244,8 +238,8 @@ def configure(parser: argparse.ArgumentParser) -> None:
                           ("horizon", 32), ("updates", 1000), ("batches", 24),
                           ("batch-size", 512), ("replay", 131072), ("regret-iterations", 64),
                           ("seed", 42), ("save-every", 100), ("warmup", 10),
-                          ("hidden", 256), ("depth", 3), ("history-width", 64),
-                          ("history-layers", 2), ("history-heads", 4), ("torch-threads", 1)):
+                          ("hidden", 256), ("depth", 4), ("history-width", 64),
+                          ("history-layers", 1), ("history-heads", 4), ("torch-threads", 1)):
         parser.add_argument("--" + name, type=int, default=default)
     parser.add_argument("--lr", type=float, default=.0003)
     parser.set_defaults(func=run)

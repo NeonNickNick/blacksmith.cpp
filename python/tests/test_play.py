@@ -89,7 +89,7 @@ class PlayTests(unittest.TestCase):
         arena = engine.Arena(1, 1)
         before, masks = arena.observe()
         model = Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
-                                         history_layers=0, history_heads=2)).eval()
+                                         history_layers=1, history_heads=2)).eval()
         with torch.no_grad():
             model.critic.weight.normal_(0, .2)
         expected_actions, expected = training_search(model, arena, np.random.default_rng(12),
@@ -109,7 +109,7 @@ class PlayTests(unittest.TestCase):
         arena = engine.Arena(1, 1)
         iron = engine.ACTION_NAMES.index('iron 0')
         arena.reset(0, [[iron, iron]] * (engine.ROUND_LIMIT - 1))
-        model = Policy(config=ModelConfig(hidden=16, history_layers=0, history_heads=2))
+        model = Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2))
         before, masks = arena.observe()
         actions, policies, info = search(model, arena, np.random.default_rng(42), torch.device('cpu'),
                                         width=3, leaf_width=2, depth=4, max_nodes=100)
@@ -136,7 +136,10 @@ class PlayTests(unittest.TestCase):
         self.assertEqual(play.parse_action('  IRON  '), play.parse_action('iron 0'))
         self.assertEqual(play.parse_action('shield 5'), engine.action_index(5, 5))
         for text in ('', '0', 'unknown 0', 'shield -1', 'shield 0.5',
-                     'shield 6', 'shield 1 extra', 'iron 1', 'magicattack 0'):
+                     'shield 6', 'shield 1 extra', 'iron 1', 'magicattack 0',
+                     'association', 'association 0 magicattack',
+                     'iron 0 stick 0', 'association 0 association 0 stick 0',
+                     'monk', 'prophet'):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 play.parse_action(text)
 
@@ -165,25 +168,21 @@ class PlayTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 arena.reset_play(0, seat, amount)
 
-    def test_prediction_score_normalizes_both_heads_and_uses_correct_seat(self):
+    def test_prediction_score_uses_probability_and_correct_seat(self):
         arena = engine.Arena(1, 1)
         agent = MasterAgent.__new__(MasterAgent)
         agent.device = torch.device('cpu')
-        for head, bias in (('sigmoid', math.log(4)), ('tanh', math.atanh(.6))):
-            agent.model = Policy(config=ModelConfig(hidden=16, history_layers=0,
-                                                   history_heads=2, value_head=head)).eval()
-            with torch.no_grad():
-                agent.model.critic.weight.zero_()
-                agent.model.critic.bias.fill_(bias)
-            self.assertAlmostEqual(agent.predict_score(arena, 0), .8, places=6)
-            self.assertTrue(all(parameter.grad is None for parameter in agent.model.parameters()))
+        agent.model = Policy(config=ModelConfig(hidden=16, history_layers=1,
+                                               history_heads=2)).eval()
+        with torch.no_grad():
+            agent.model.critic.weight.zero_()
+            agent.model.critic.bias.fill_(math.log(4))
+        self.assertAlmostEqual(agent.predict_score(arena, 0), .8, places=6)
+        self.assertTrue(all(parameter.grad is None for parameter in agent.model.parameters()))
 
         class PerspectiveModel(torch.nn.Module):
             def forward(self, states):
                 return None, .2 + .6 * states[:, 3] * 10
-
-            def signed_values(self, values):
-                return 2 * values - 1
 
         agent.model = PerspectiveModel()
         arena.reset_play(0, 1, 1.0)
@@ -377,7 +376,7 @@ class PlayTests(unittest.TestCase):
     def test_analysis_is_deterministic_legal_and_does_not_change_live_rng_or_state(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'model.pt'
-            model = Policy(config=ModelConfig(hidden=16, history_layers=0, history_heads=2))
+            model = Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2))
             from master.models import checkpoint
             torch.save(checkpoint(model), path)
             agent = MasterAgent(path, seed=42, width=2, leaf_width=1, iterations=16,

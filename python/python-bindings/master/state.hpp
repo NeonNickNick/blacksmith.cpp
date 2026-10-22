@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 
 namespace blacksmith::python_bindings::master {
 inline constexpr int ROUND_LIMIT = 100;
@@ -21,12 +22,25 @@ struct history_record {
 };
 class state {
   public:
-    std::array<community, 2> players_{};
+    community players_[2]{community(&players_[1]), community(&players_[0])};
     int round_ = 1;
     std::array<history_record, HISTORY_LENGTH> history_{};
     int history_size_ = 0;
 
     state() { initialize(players_[0], players_[1]); }
+    state(const state &other)
+        : players_{other.players_[0], other.players_[1]}, round_(other.round_),
+          history_(other.history_), history_size_(other.history_size_) {
+        bind_opponents();
+    }
+    state(state &&other) noexcept
+        : players_{std::move(other.players_[0]), std::move(other.players_[1])},
+          round_(other.round_), history_(std::move(other.history_)),
+          history_size_(other.history_size_) {
+        bind_opponents();
+    }
+    state &operator=(const state &) = default;
+    state &operator=(state &&) noexcept = default;
     [[nodiscard]] bool legal(int seat, int index) {
         if (seat < 0 || seat > 1 || index < 0 || index >= SKILL_NUM)
             return false;
@@ -69,10 +83,13 @@ class state {
     }
 
   private:
+    void bind_opponents() {
+        players_[0].opponent_ = &players_[1];
+        players_[1].opponent_ = &players_[0];
+    }
     static skill_context context(community &player, int index) {
         const auto &a = skill_table[static_cast<size_t>(index)];
-        return {.action_ = {.skill_ = a.skill_, .param_ = a.param_},
-                .self_ = &player};
+        return {.action_ = a.to_skill_action(), .self_ = &player};
     }
     static std::array<float, HISTORY_PLAYER_LENGTH - 1>
     measure(const community &player) {

@@ -3,7 +3,7 @@
 #include "arena.hpp"
 #include "domain/models.hpp"
 #include "encoding.hpp"
-#include "skill-system/professions.hpp"
+#include "skill-system/skill-sets.hpp"
 #include "state.hpp"
 #include <algorithm>
 #include <array>
@@ -174,7 +174,7 @@ PYBIND11_MODULE(master, m) {
     m.attr("COMMON_ENCODING_LENGTH") = COMMON_ENCODING_LENGTH;
     m.attr("PROFESSION_ENCODING_LENGTH") = PROFESSION_ENCODING_LENGTH;
     m.attr("SKILL_NUM") = SKILL_NUM;
-    m.attr("STATE_FEATURES") = STATE_FEATURES;
+    m.attr("BASE_ACTION_COUNT") = BASE_ACTION_COUNT;
     m.attr("GLOBAL_OFFSET") = GLOBAL_OFFSET;
     m.attr("HISTORY_OFFSET") = HISTORY_OFFSET;
     m.attr("HISTORY_LENGTH") = HISTORY_LENGTH;
@@ -190,33 +190,36 @@ PYBIND11_MODULE(master, m) {
     m.attr("PENDING_RESOURCE_OFFSET") = PENDING_RESOURCE_OFFSET;
     m.attr("CALLBACK_OFFSET") = CALLBACK_OFFSET;
     m.attr("EFFECT_OFFSET") = EFFECT_OFFSET;
-    std::vector<std::pair<int, int>> actions;
-    for (const auto &a : skill_table)
-        actions.emplace_back(static_cast<int>(a.skill_), a.param_);
-    m.attr("ACTIONS") = py::cast(actions);
+    py::list actions;
     std::vector<std::string> names;
-    const auto &skill_names =
-        blacksmith::skill_system::get_string_skill_mapping();
     for (const auto &a : skill_table) {
-        const auto found =
-            std::ranges::find_if(skill_names, [&a](const auto &entry) {
-                return entry.second == a.skill_;
-            });
-        if (found == skill_names.end())
-            throw std::runtime_error("Missing skill name");
-        names.push_back(found->first + " " + std::to_string(a.param_));
+        py::tuple chain(a.next_skill_ == skill::SIZE ? 1 : 2);
+        chain[0] = py::make_tuple(static_cast<int>(a.skill_), a.param_);
+        if (chain.size() == 2)
+            chain[1] = py::make_tuple(static_cast<int>(a.next_skill_), a.next_param_);
+        actions.append(chain);
+        names.push_back(blacksmith::skill_system::format_skill_action(a.to_skill_action()));
     }
+    m.attr("ACTIONS") = actions;
     m.attr("ACTION_NAMES") = py::cast(names);
     m.attr("ROLES") = py::cast(std::vector<std::string>{
-        "none", "warlock", "cannon", "driver", "lancer", "bloodsigil"});
+        "none", "warlock", "cannon", "driver", "lancer", "bloodsigil",
+        /* "monk", "prophet", */ "holybook", "phantombook", "crossbow"});
+    m.def("parse_action", [](const std::string &input) {
+        return action_index(blacksmith::skill_system::parse_skill_action(input));
+    });
     m.def(
         "action_index",
-        [](int move, int param) {
-            if (move < 0 || move >= static_cast<int>(skill::SIZE))
+        [](int move, int param, int next, int next_param) {
+            if (move < 0 || move >= static_cast<int>(skill::SIZE) ||
+                next < -1 || next >= static_cast<int>(skill::SIZE))
                 throw std::invalid_argument("Invalid skill ID");
-            return action_index(static_cast<skill>(move), param);
+            return action_index(static_cast<skill>(move), param,
+                                next == -1 ? skill::SIZE : static_cast<skill>(next),
+                                next_param);
         },
-        py::arg("skill"), py::arg("parameter") = 0);
+        py::arg("skill"), py::arg("parameter") = 0,
+        py::arg("next_skill") = -1, py::arg("next_parameter") = 0);
     py::class_<arena>(m, "Arena")
         .def(py::init<int, int>(), py::arg("count") = 32,
              py::arg("threads") = 6)
@@ -231,28 +234,44 @@ PYBIND11_MODULE(master, m) {
         .def("reset_play", &arena::reset_play, py::arg("index"),
              py::arg("human_seat"), py::arg("iron"),
              py::call_guard<py::gil_scoped_release>())
-        .def("status", [](const arena &env, int index) {
-            const auto &game = env.games_.at(static_cast<size_t>(index));
-            py::dict result;
-            result["round"] = game.round_;
-            result["outcome"] = game.outcome();
-            py::list players;
-            for (const auto &player : game.players_) {
-                const auto &body = player.focus_;
-                py::dict info;
-                info["hp"] = body.health_.hp_;
-                info["mhp"] = body.health_.mhp_;
-                info["role"] = role(player);
-                info["iron"] = body.resource_.query_common(resource_type::IRON);
-                info["gold_iron"] = body.resource_.query_gold(resource_type::IRON);
-                info["magic"] = body.resource_.query_common(resource_type::MAGIC);
-                info["space"] = body.resource_.query_common(resource_type::SPACE);
-                info["time"] = body.resource_.query_common(resource_type::TIME);
-                players.append(info);
-            }
-            result["players"] = players;
-            return result;
-        }, py::arg("index") = 0)
+        .def(
+            "status",
+            [](const arena &env, int index) {
+                const auto &game = env.games_.at(static_cast<size_t>(index));
+                py::dict result;
+                result["round"] = game.round_;
+                result["outcome"] = game.outcome();
+                py::list players;
+                for (const auto &player : game.players_) {
+                    const auto &body = player.focus_;
+                    py::dict info;
+                    info["hp"] = body.health_.hp_;
+                    info["mhp"] = body.health_.mhp_;
+                    info["role"] = role(player);
+                    info["iron"] =
+                        body.resource_.query_common(resource_type::IRON);
+                    info["gold_iron"] =
+                        body.resource_.query_gold(resource_type::IRON);
+                    info["magic"] =
+                        body.resource_.query_common(resource_type::MAGIC);
+                    info["space"] =
+                        body.resource_.query_common(resource_type::SPACE);
+                    info["time"] =
+                        body.resource_.query_common(resource_type::TIME);
+                    info["cross"] = body.resource_.query(resource_type::CROSS);
+                    info["dream"] = body.resource_.query(resource_type::DREAM);
+                    info["spirit"] = body.resource_.query(resource_type::SPIRIT);
+                    info["fire"] = body.resource_.query(resource_type::FIRE);
+                    info["water"] = body.resource_.query(resource_type::WATER);
+                    info["wood"] = body.resource_.query(resource_type::WOOD);
+                    info["earth"] = body.resource_.query(resource_type::EARTH);
+                    info["bolt"] = body.resource_.query(resource_type::BOLT);
+                    players.append(info);
+                }
+                result["players"] = players;
+                return result;
+            },
+            py::arg("index") = 0)
         .def("metadata", [](const arena &env) {
             int_array result(
                 {static_cast<py::ssize_t>(env.games_.size()), py::ssize_t{3}});

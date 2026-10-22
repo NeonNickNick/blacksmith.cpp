@@ -53,6 +53,12 @@ include(cmake/clang-tidy.cmake)
 include(CTest)
 
 add_subdirectory(src)
+
+option(BLACKSMITH_BUILD_BDSL "Build the BDSL compiler and tools" OFF)
+if(BLACKSMITH_BUILD_BDSL)
+    add_subdirectory(bdsl)
+endif()
+
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()

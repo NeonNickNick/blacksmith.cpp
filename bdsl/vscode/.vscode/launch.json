@@ -1,0 +1,4 @@
+{
+  "version": "0.2.0",
+  "configurations": [{ "name": "Run BDSL Extension", "type": "extensionHost", "request": "launch", "args": ["--extensionDevelopmentPath=${workspaceFolder}", "${workspaceFolder}/../examples"], "outFiles": ["${workspaceFolder}/src/**/*.js"] }]
+}

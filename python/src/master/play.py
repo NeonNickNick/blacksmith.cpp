@@ -12,38 +12,8 @@ from .agent import Agent
 
 DEFAULT_CHECKPOINT_DIR = Path(__file__).resolve().parents[3] / 'models' / 'blacksmith-master'
 
-# Names accepted by standard_pvp, mapped to the domain skill enum explicitly.
-SKILLS = {
-    'iron': 0, 'stick': 1, 'drill': 2, 'slash': 3, 'tear': 4,
-    'shield': 5, 'thornshield': 6, 'recovery': 7, 'space': 8,
-    'time': 9, 'reflect': 10, 'delayprotection': 11, 'armor12': 12,
-    'warlock': 13, 'alchemy': 14, 'cannon': 15, 'driver': 16,
-    'lancer': 17, 'bloodsigil': 18, 'magic': 19, 'magicattack': 20,
-    'magicshield': 21, 'sacrifice': 22, 'mute': 23, 'midastouch': 24,
-    'strike': 25, 'doublestrike': 26, 'triplestrike': 27, 'apshell': 28,
-    'cannonbarrier': 29, 'spaceattack': 30, 'time2space': 31,
-    'space2time': 32, 'spacebarrier': 33, 'skystrike': 34,
-    'tyrantdestruction': 35, 'dragontooth': 36, 'triplestab': 37,
-    'charge': 38, 'risingdragon': 39, 'bloodblade': 40,
-    'bloodlust': 41, 'bloodrecovery': 42, 'bloodrage': 43,
-}
-
-
 def parse_action(text: str) -> int:
-    parts = text.lower().split()
-    if len(parts) not in (1, 2) or (len(parts) == 2 and not parts[1].isascii()):
-        raise ValueError('Use skill name + nonnegative integer parameter.')
-    if parts[0] not in SKILLS:
-        raise ValueError('Unknown skill name.')
-    if len(parts) == 2 and not parts[1].isdecimal():
-        raise ValueError('Use skill name + nonnegative integer parameter.')
-    parameter = int(parts[1]) if len(parts) == 2 else 0
-    if parameter > 5:
-        raise ValueError('Skill parameters must be between 0 and 5.')
-    try:
-        return engine.action_index(SKILLS[parts[0]], parameter)
-    except ValueError:
-        raise ValueError('This skill does not support that parameter.') from None
+    return engine.parse_action(text)
 
 
 def starting_iron(fixed: float | None) -> float | None:
@@ -72,6 +42,8 @@ def print_status(arena, human_seat: int, finished=False) -> None:
         print(f'{label}: HP {player["hp"]}/{player["mhp"]} | Role: {engine.ROLES[player["role"]]}')
         print(f'  Iron: {player["iron"]:g} | Gold iron: {player["gold_iron"]:g} | '
               f'Magic: {player["magic"]:g} | Space: {player["space"]:g} | Time: {player["time"]:g}')
+        resources = ('cross', 'dream', 'spirit', 'fire', 'water', 'wood', 'earth', 'bolt')
+        print('  ' + ' | '.join(f'{key.title()}: {player[key]:g}' for key in resources))
 
 
 class CheckpointPool:
@@ -182,7 +154,7 @@ def try_position(arena, agent, human_seat: int) -> bool:
     if arena.status(0)['outcome']:
         print('Cannot start a trial from a terminal position.')
         return False
-    print('Trial: enter a skill + parameter; 4/back returns to the trial start; resign ends the trial; q exits.')
+    print('Trial: enter skill param [skill param ...]; 4/back returns to the trial start; resign ends the trial; q exits.')
     while True:
         command, _, outcome = play_round(arena, agent, human_seat, trial=True)
         if command == 'quit':
@@ -256,9 +228,9 @@ def run(args: argparse.Namespace) -> None:
             args.search_depth, args.search_nodes, args.search_batch, args.regret_iterations) <= 0
             or max(args.width, args.leaf_width) > engine.SKILL_NUM
             or args.search_depth > engine.ROUND_LIMIT):
-        raise ValueError('Positive play limits required; widths <=75, depth <=100')
+        raise ValueError(f'Positive play limits required; widths <={engine.SKILL_NUM}, depth <={engine.ROUND_LIMIT}')
     torch.set_num_threads(args.torch_threads)
-    print('During the game, enter resign to concede; q exits the program.')
+    print('During the game, enter resign to concede (认输); q exits the program.')
     pool = CheckpointPool(args.checkpoint, args.checkpoint_dir, args.seed)
 
     iron = starting_iron(args.starting_iron)

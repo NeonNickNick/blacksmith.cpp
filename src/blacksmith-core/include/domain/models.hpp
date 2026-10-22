@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
-#include <bitset>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,6 +25,8 @@ enum class defense_type : std::uint8_t {
     STONE_SHELL,
     REAL_ARMOR,
     COMMON_ARMOR,
+    GREY_HP,
+    DAMAGE_TRANSFER,
     SIZE
 };
 enum class resource_type : std::uint8_t {
@@ -33,6 +35,17 @@ enum class resource_type : std::uint8_t {
     SPACE,
     TIME,
     MAGIC,
+    CROSS,
+    DREAM,
+    SPIRIT,
+    FIRE,
+    WATER,
+    WOOD,
+    EARTH,
+    BOLT,
+    JADE,
+    CRYSTAL,
+    CRYSTAL_BALL,
     SIZE,
     HP,
     MHP
@@ -46,6 +59,7 @@ struct clap_round_clock {
     bool is_infinite_{false};
     [[nodiscard]] bool is_ringing() const;
     [[nodiscard]] bool is_dead() const;
+    void set_dead();
     void round_pass();
 };
 static_assert(std::copy_constructible<clap_round_clock>);
@@ -80,6 +94,7 @@ struct attack_data {
     bool interrupt_;
     attack_execute_func executor_;
     int total_damage_;
+    int body_damage_factor_ = 1;
 };
 static_assert(context_data<attack_data>);
 //
@@ -88,9 +103,17 @@ static_assert(context_data<attack_data>);
 using defend_attack_func = void (*)(community &, community &, defense_entity &,
                                     attack_data &);
 using merge_func = void (*)(defense_entity &, defense_entity &);
-using update_func = void (*)(defense_entity &);
-enum class defense_id : uint8_t { DEFAULT, ARMOR12 };
-inline extern void default_update(defense_entity &defense);
+using update_func = void (*)(community &, defense_entity &);
+enum class defense_id : uint8_t {
+    DEFAULT,
+    ARMOR12,
+    MONK_CLONES,
+    NIGHTMARE_ARMOR,
+    ELEMENTAL_ARMOR,
+    CRYSTAL_WALL,
+    STONE_SHELL,
+};
+inline extern void default_update(community &player, defense_entity &defense);
 struct defense_entity {
   public:
     defense_id id_{defense_id::DEFAULT};
@@ -166,6 +189,13 @@ enum class mark_id : uint8_t {
     COUNTER_ATTACK,
 
     BLOODSIGIL,
+    PROFANATION,
+    CROSSBOW_AIM,
+    GREATEST_CAUTION,
+    REVELATION,
+    CRYSTAL_WALL_HIT,
+    DELAYED_CRYSTAL_WALL_HIT,
+    SIZE,
 };
 struct mark_entity {
   public:
@@ -185,6 +215,7 @@ enum class callback_stage : uint8_t {
     BEFORE_APPLY_ATTACK,
     BEFORE_APPLY_RESOURCE,
     BEFORE_ROUND_PASS,
+    BEFORE_END,
     SIZE
 };
 struct callback_data {
@@ -215,7 +246,7 @@ class defense_component {
   public:
     std::vector<defense_entity> defenses_;
     void add(defense_entity &defense);
-    void round_pass();
+    void round_pass(community &player);
 
   private:
     bool try_merge(defense_entity &defense);
@@ -258,7 +289,7 @@ class resource_component {
     };
 
   private:
-    static constexpr std::size_t RESOURCE_NUMS = 4;
+    static constexpr std::size_t RESOURCE_NUMS = 15;
     std::array<resource_template, RESOURCE_NUMS> templates_;
     [[nodiscard]] static std::size_t template_index(resource_type type);
 
@@ -281,7 +312,14 @@ class turn_context_component {
       public:
         std::vector<T> datas_;
         template <typename... Args> [[nodiscard]] T &write(Args &&...args) {
-            return datas_.emplace_back(std::forward<Args>(args)...);
+            auto data = T(std::forward<Args>(args)...);
+            for (const auto PREPROCESS : preprocessors_) {
+                PREPROCESS(data);
+            }
+            return datas_.emplace_back(data);
+        }
+        void register_preprocess(void (*preprocess)(T &)) {
+            preprocessors_.push_back(preprocess);
         }
         void round_pass() {
             for (auto &data : datas_) {
@@ -289,6 +327,9 @@ class turn_context_component {
             }
             std::erase_if(datas_, [](T &t) { return t.clock_.is_dead(); });
         }
+
+      private:
+        std::vector<void (*)(T &)> preprocessors_;
     };
 
   public:
@@ -355,6 +396,69 @@ enum class skill : uint8_t {
     BLOOD_RECOVERY,
     BLOOD_RAGE,
 
+    // MONK,
+    // PROPHET,
+    HOLYBOOK,
+    PHANTOMBOOK,
+    CAULDRON,
+    CROSSBOW,
+
+    // JADE,
+    // GHOST_STEP,
+    // GOLDEN_BELL_COVER,
+    // MAZE_FIST,
+    // MIST,
+    // DISILLUSIONMENT,
+
+    // CRYSTAL,
+    // CRYSTAL_BALL,
+    // FORETOLD,
+    // GREATEST_CAUTION,
+    // REVELATION,
+    // ASSERTION,
+    // CRYSTAL_WALL,
+    // REFRACTION,
+    // ULTIMATUM,
+
+    CROSS,
+    PRAYER,
+    ARK,
+    PROFANATION,
+    REBIRTH,
+    ABSOLUTION,
+
+    FANTASIA,
+    ASSOCIATION,
+    HALLUCINATION,
+    DREAM_WAKE,
+    ILLUSION,
+    NIGHTMARE,
+    DREAM_DIVE,
+    MATERIALIZATION,
+    HAUNT,
+    CHANNELING,
+
+    FIRE,
+    WATER,
+    WOOD,
+    EARTH,
+    EXPLOSION,
+    ICE_BLADE,
+    REGENERATION,
+    STONE_SHELL,
+    BURN_LIFE,
+    FIRE_RAIN,
+    ELEMENTAL_ARMOR,
+    HAMMER,
+    GUARD,
+
+    MAKE_BOLTS,
+    ARROW_RAIN,
+    AIM,
+    CRITICAL,
+    BLOCK,
+    MARK_SHOT,
+
     SIZE,
 };
 struct skill_action {
@@ -374,21 +478,20 @@ struct skill_context {
 };
 //
 
-// 职业技能组
+// 通用技能包：公共技能、职业、副装备和临时装备模式共用。
 using skill_check_func = bool (*)(const skill_context &);
 using skill_declare_func = void (*)(skill_context &);
-class profession_skill_set {
+class skill_set {
   public:
-    profession_skill_set(const std::vector<skill> &skills,
-                         skill_check_func passive_check,
-                         skill_declare_func passive_declare);
+    skill_set(const std::vector<skill> &skills, skill_check_func passive_check,
+              skill_declare_func passive_declare);
     std::vector<skill> authorized_skills_;
     std::pair<skill_check_func, skill_declare_func> passive_func_{nullptr,
                                                                   nullptr};
 };
 //
 enum class check_result : std::uint8_t { SUCCESS, REJECTED, INVALID };
-// 职业组件
+// 根节点的互斥职业身份；副装备不占用职业身份。
 enum class profession_type : uint8_t {
     NONE,
     WARLOCK,
@@ -396,26 +499,65 @@ enum class profession_type : uint8_t {
     DRIVER,
     LANCER,
     BLOODSIGIL,
+    // MONK,
+    // PROPHET,
+    HOLYBOOK,
+    PHANTOMBOOK,
+    CROSSBOW,
     SIZE,
 };
-class profession_component {
+// 技能权限组件；具体节点的获取入口和互斥规则由技能包声明。
+class skill_component {
   public:
     void invoke_passive(skill_context &context);
     [[nodiscard]] check_result check(const skill_context &context) const;
     void declare(skill_context &context);
-    void add_profession(const profession_skill_set *skill_set);
+
     void disable_skill(skill skill_name);
-    void disable_skill(const std::vector<skill> &skill_name);
+    void disable_skills(const std::span<const skill> &skill_names);
+    void enable_skill(skill skill_name);
+    void enable_skills(const std::span<const skill> &skill_names);
+
+    void remove_skill_set(const skill_set *skill_set);
+    void add_skill_set(const skill_set *skill_set);
+
+    void lock_all_skills(const std::span<const skill> &except_skills = {});
+    void release_all_skills(const std::span<const skill> &except_skills = {});
     [[nodiscard]] const std::vector<skill> &authorized_skills() const;
-    bool have_extra_profession_{false};
+    bool has_profession_{false};
     profession_type profession_{profession_type::NONE};
 
   private:
     std::vector<skill> authorized_skills_;
-    std::bitset<static_cast<size_t>(skill::SIZE)> authorized_bitset_;
+    // An unacquired skill starts with one disable; acquiring it releases it.
+    std::array<int, static_cast<size_t>(skill::SIZE)> skill_disable_counts_ =
+        [] {
+            std::array<int, static_cast<size_t>(skill::SIZE)> counts{};
+            counts.fill(1);
+            return counts;
+        }();
     std::vector<std::pair<skill_check_func, skill_declare_func>> passive_funcs_;
 };
 //
+
+/* Temporarily disabled profession state.
+struct monk_clone {
+    health_component health_;
+    int golden_bell_uses_ = 0;
+    int mist_rounds_ = 0;
+};
+struct monk_component {
+    std::vector<monk_clone> clones_;
+    int golden_bell_uses_ = 0;
+    int mist_cooldown_ = 0;
+    int transfer_rounds_ = 0;
+};
+struct prophet_component {
+    bool evaded_ = false;
+    int caution_ = 0;
+    int revelation_ = 0;
+};
+*/
 
 // 玩家
 class body {
@@ -426,7 +568,9 @@ class body {
     effect_component effect_;
     mark_component mark_;
     turn_context_component turn_context_;
-    profession_component profession_;
+    skill_component skills_;
+    // monk_component monk_;
+    // prophet_component prophet_;
     void print_info() const;
 };
 //
@@ -434,8 +578,17 @@ class body {
 // 社区：包装玩家和召唤物
 class community {
   public:
+    explicit community(community *opponent);
+    community(const community &other);
+    community &operator=(const community &other);
+    community(community &&) = default;
+    community &operator=(community &&other) noexcept;
+
+    // 非拥有指针；赋值只替换玩家状态，保留当前对局的对手。
+    community *opponent_;
     body focus_;
-    skill current_skill_;
+    skill current_skill_{skill::IRON};
+    std::vector<skill_action> history_;
 };
 //
 } // namespace blacksmith::domain

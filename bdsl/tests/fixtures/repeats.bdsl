@@ -1,0 +1,66 @@
+// Compiled into core_test.cpp to exercise the generated functions directly.
+[skillset]("repeatfixtures") -> {
+    [skill]([name] "repeatplain" [id] STICK) -> {
+        [check]() -> {}
+        [declare]() -> {
+            <repeat>(3) -> {
+                <attack>([type] Physical [power] 1 + __index__ [delay] __index__)
+            }
+        }
+    }
+    [skill]([name] "repeatbatch" [id] DRILL) -> {
+        [check]() -> {}
+        [declare]() -> {
+            <repeat>(3) -> {
+                <attack>([type] Magical [power] 2 * __N__ + __index__ [delay] __index__)
+            }
+        }
+    }
+    [skill]([name] "repeatcapture" [id] SLASH) -> {
+        [check]() -> {}
+        [declare]() -> {
+            <takemark> @stacks@ CANNON
+            <if>(@stacks@ > 0) -> {
+                <repeat>(2) -> {
+                    <attack>([type] Real [power] @stacks@ + __N__ + __index__)
+                }
+            }
+        }
+    }
+    [skill]([name] "repeatnested" [id] TEAR) -> {
+        [check]() -> {}
+        [declare]() -> {
+            <countmark> @outer@ CANNON
+            <repeat>(2) -> {
+                <countmark> @inner@ CANNON
+                <repeat>(3) -> {
+                    <resource>([type] Iron [power] @outer@ + @inner@ + __N__ + __index__)
+                }
+            }
+        }
+    }
+    [skill]([name] "repeatlocal" [id] SHIELD) -> {
+        [check]() -> {}
+        [declare]() -> {
+            <repeat>(2) -> {
+                <takemark> @stacks@ CANNON
+                <repeat>(2) -> {
+                    <attack>([type] Physical [power] @stacks@ + __index__)
+                }
+            }
+        }
+    }
+    [skill]("auto") -> {
+        [declare]() -> {
+            <repeat>(2) -> {
+                <recover> 1
+            }
+            <repeat>(0) -> {
+                <recover> 1000
+            }
+            <repeat>(-1) -> {
+                <recover> 1000
+            }
+        }
+    }
+}

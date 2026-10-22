@@ -1,4 +1,4 @@
-"""Shared state encoders, optional history, and a configurable residual trunk."""
+"""Residual policy with mandatory history attention and association actions."""
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -7,24 +7,24 @@ import torch
 from blacksmith import master as engine
 from torch import Tensor, nn
 
+ARCHITECTURE = "residual-history-association-v1"
+
 
 @dataclass(frozen=True)
 class ModelConfig:
     hidden: int = 256
     features: int = engine.OBSERVATION_LENGTH
     actions: int = engine.SKILL_NUM
-    depth: int = 3
+    depth: int = 4
     history_width: int = 64
-    history_layers: int = 2
+    history_layers: int = 1
     history_heads: int = 4
-    backbone: str = "mlp"
-    value_head: str = "tanh"
 
     def __post_init__(self) -> None:
-        if self.hidden < 8 or self.depth < 1 or self.history_layers < 0:
-            raise ValueError("Invalid MLP dimensions or history layer count")
-        if self.backbone not in ("mlp", "residual") or self.value_head not in ("tanh", "sigmoid"):
-            raise ValueError("Unknown backbone or value head")
+        if self.hidden < 8 or self.depth < 1 or self.history_layers < 1:
+            raise ValueError("Residual depth and history layer count must be positive; hidden width must be >= 8")
+        if self.actions != 2 * engine.BASE_ACTION_COUNT:
+            raise ValueError("Association policy requires paired ordinary/borrowed action tables")
         if self.features != engine.OBSERVATION_LENGTH or self.actions != engine.SKILL_NUM:
             raise ValueError("Model dimensions must match the native schema")
         if (self.history_width < 2 or self.history_width % 2 or self.history_heads < 1
@@ -38,6 +38,8 @@ class HistoryEncoder(nn.Module):
         width = config.history_width
         self.padding_index = config.actions
         self.actions = nn.Embedding(config.actions + 1, width // 2, padding_idx=config.actions)
+        self.base_actions = nn.Embedding(engine.BASE_ACTION_COUNT + 1, width // 2,
+                                         padding_idx=engine.BASE_ACTION_COUNT)
         self.numeric = nn.Linear(engine.HISTORY_TOKEN_LENGTH - 3, width)
         self.position = nn.Parameter(torch.empty(1, engine.HISTORY_LENGTH, width))
         self.summary = nn.Parameter(torch.empty(1, 1, width))
@@ -53,6 +55,9 @@ class HistoryEncoder(nn.Module):
         # Replace padding before embedding/projection, so unused data has no effect.
         indices = torch.where(valid.unsqueeze(-1), history[..., 1:3].long(), self.padding_index)
         actions = self.actions(indices).flatten(-2)
+        base = torch.where(valid.unsqueeze(-1), indices % engine.BASE_ACTION_COUNT,
+                           engine.BASE_ACTION_COUNT)
+        actions = actions + self.base_actions(base).flatten(-2)
         numeric = torch.where(valid.unsqueeze(-1), history[..., 3:], 0)
         tokens = actions + self.numeric(numeric) + self.position
         tokens = torch.cat((self.summary.expand(history.shape[0], -1, -1), tokens), dim=1)
@@ -73,29 +78,22 @@ class ResidualBlock(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, hidden: int = 256, initialize: bool = True,
-                 config: ModelConfig | None = None) -> None:
+    def __init__(self, config: ModelConfig | None = None, *, initialize: bool = True) -> None:
         super().__init__()
-        self.config = config or ModelConfig(hidden=hidden)
+        self.config = config or ModelConfig()
         cfg = self.config
         # Share each field-family encoder between the two player perspectives.
-        activation = nn.SiLU if cfg.backbone == "residual" else nn.Tanh
-        self.public = nn.Sequential(nn.Linear(engine.COMMON_ENCODING_LENGTH, cfg.hidden // 2), activation())
-        self.profession = nn.Sequential(nn.Linear(engine.PROFESSION_ENCODING_LENGTH, cfg.hidden // 4), activation())
-        self.history = HistoryEncoder(cfg) if cfg.history_layers else None
-        inputs = 2 * (cfg.hidden // 2 + cfg.hidden // 4) + 2
-        if self.history is not None:
-            inputs += cfg.history_width
-        layers: list[nn.Module] = []
-        if cfg.backbone == "residual":
-            layers.extend((nn.Linear(inputs, cfg.hidden), nn.SiLU()))
-            layers.extend(ResidualBlock(cfg.hidden, cfg.depth) for _ in range(cfg.depth))
-            layers.append(nn.LayerNorm(cfg.hidden))
-        else:
-            for index in range(cfg.depth):
-                layers.extend((nn.Linear(inputs if index == 0 else cfg.hidden, cfg.hidden), nn.Tanh()))
-        self.body = nn.Sequential(*layers)
-        self.actor = nn.Linear(cfg.hidden, cfg.actions)
+        self.public = nn.Sequential(nn.Linear(engine.COMMON_ENCODING_LENGTH, cfg.hidden // 2), nn.SiLU())
+        self.profession = nn.Sequential(nn.Linear(engine.PROFESSION_ENCODING_LENGTH, cfg.hidden // 4), nn.SiLU())
+        self.history = HistoryEncoder(cfg)
+        inputs = (2 * (cfg.hidden // 2 + cfg.hidden // 4)
+                  + engine.HISTORY_OFFSET - engine.GLOBAL_OFFSET + cfg.history_width)
+        self.body = nn.Sequential(nn.Linear(inputs, cfg.hidden), nn.SiLU(),
+                                  *(ResidualBlock(cfg.hidden, cfg.depth) for _ in range(cfg.depth)),
+                                  nn.LayerNorm(cfg.hidden))
+        self.actor = nn.Linear(cfg.hidden, engine.BASE_ACTION_COUNT)
+        self.association_actor = nn.Linear(cfg.hidden, engine.BASE_ACTION_COUNT)
+        self.association_gate = nn.Linear(cfg.hidden, 1)
         self.critic = nn.Linear(cfg.hidden, 1)
         if initialize:
             for layer in self.modules():
@@ -108,6 +106,11 @@ class Policy(nn.Module):
                     if layer.in_proj_bias is not None:
                         nn.init.zeros_(layer.in_proj_bias)
             nn.init.orthogonal_(self.actor.weight, .01)
+            # Start from shared skill scores; learn borrowing's cost and context.
+            nn.init.zeros_(self.association_actor.weight)
+            nn.init.zeros_(self.association_actor.bias)
+            nn.init.zeros_(self.association_gate.weight)
+            nn.init.zeros_(self.association_gate.bias)
             nn.init.zeros_(self.critic.weight)
 
     def forward(self, observation: Tensor, value_logits: bool = False) -> tuple[Tensor, Tensor]:
@@ -120,18 +123,20 @@ class Policy(nn.Module):
                  self.profession(flat[:, 2 * common:2 * common + profession]),
                  self.profession(flat[:, 2 * common + profession:engine.GLOBAL_OFFSET]),
                  flat[:, engine.GLOBAL_OFFSET:engine.HISTORY_OFFSET]]
-        if self.history is not None:
-            past = flat[:, engine.HISTORY_OFFSET:].reshape(-1, engine.HISTORY_LENGTH, engine.HISTORY_TOKEN_LENGTH)
-            parts.append(self.history(past))
+        past = flat[:, engine.HISTORY_OFFSET:].reshape(-1, engine.HISTORY_LENGTH, engine.HISTORY_TOKEN_LENGTH)
+        parts.append(self.history(past))
         hidden = self.body(torch.cat(parts, dim=-1))
-        logits = self.actor(hidden).reshape(*shape, self.config.actions)
+        logits = self.actor(hidden)
+        borrowed = logits + self.association_actor(hidden) + self.association_gate(hidden)
+        logits = torch.cat((logits, borrowed), dim=-1)
+        logits = logits.reshape(*shape, self.config.actions)
         raw = self.critic(hidden).reshape(shape)
-        values = raw if value_logits else (raw.sigmoid() if self.config.value_head == "sigmoid" else raw.tanh())
+        values = raw if value_logits else raw.sigmoid()
         return logits, values
 
     def signed_values(self, values: Tensor) -> Tensor:
         """Convert expected score to the zero-sum utility used by search."""
-        return 2 * values - 1 if self.config.value_head == "sigmoid" else values
+        return 2 * values - 1
 
 
 def masked_log_probs(logits: Tensor, masks: Tensor) -> Tensor:
@@ -142,9 +147,9 @@ def masked_log_probs(logits: Tensor, masks: Tensor) -> Tensor:
 
 def checkpoint(model: Policy, **metadata: Any) -> dict[str, Any]:
     return {**metadata, "model": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()},
-            "model_config": asdict(model.config), "schema_version": engine.SCHEMA_VERSION,
-            "features": model.config.features, "actions": model.config.actions,
-            "hidden": model.config.hidden}
+            "architecture": ARCHITECTURE, "model_config": asdict(model.config),
+            "schema_version": engine.SCHEMA_VERSION,
+            "features": model.config.features, "actions": model.config.actions}
 
 
 def load(path: str | Path) -> Policy:
@@ -152,7 +157,13 @@ def load(path: str | Path) -> Policy:
     if (data.get("schema_version") != engine.SCHEMA_VERSION or
             data.get("features") != engine.OBSERVATION_LENGTH or
             data.get("actions") != engine.SKILL_NUM):
-        raise ValueError("Checkpoint is incompatible with the master observation/action schema")
+        raise ValueError(
+            f"Checkpoint {path} uses schema/features/actions "
+            f"{data.get('schema_version')}/{data.get('features')}/{data.get('actions')}; "
+            f"native expects {engine.SCHEMA_VERSION}/{engine.OBSERVATION_LENGTH}/{engine.SKILL_NUM}. "
+            "Retrain for the current rules; old weights cannot be loaded as a new policy.")
+    if data.get("architecture") != ARCHITECTURE:
+        raise ValueError(f"Checkpoint {path} does not use {ARCHITECTURE}; retrain with the current architecture.")
     model = Policy(config=ModelConfig(**data["model_config"]), initialize=False)
     model.load_state_dict(data["model"])
     return model.eval()

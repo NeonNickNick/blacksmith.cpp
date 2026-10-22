@@ -1,0 +1,7 @@
+{
+  "Skill set": { "prefix": "skillset", "body": ["[skillset](\"${1:example}\") -> {", "    $0", "}"], "description": "A single BDSL skill set" },
+  "Parameterized skill": { "prefix": "batchskill", "body": ["[skill]([name] \"${1:magicattack}\" [id] ${2:MAGIC_ATTACK}) -> {", "    [check]() -> {", "        <require> __N__ > 0", "        <require> Magic >= __N__", "    }", "    [declare]() -> {", "        <use> __N__ Magic", "        <repeat>(3) -> {", "            <attack>([type] Magical [power] 2 * __N__ [delay] __index__)", "        }", "    }", "}"], "description": "Parameterized skill using __N__" },
+  "Active skill": { "prefix": "skill", "body": ["[skill]([name] \"${1:strike}\" [id] ${2:STRIKE}) -> {", "    [check]() -> {", "        <require> Iron >= ${3:1}", "    }", "    [declare]() -> {", "        <use> $3 Iron", "        <attack>([type] Physical [power] ${4:4})", "    }", "}"], "description": "Checked skill with resource cost and attack" },
+  "Passive": { "prefix": "passive", "body": ["[skill](\"auto\") -> {", "    [declare]() -> {", "        $0", "    }", "}"] },
+  "Repeat": { "prefix": "repeat", "body": ["<repeat>(${1:3}) -> {", "    <attack>([type] Magical [power] ${2:2} [delay] __index__)", "}"] }
+}

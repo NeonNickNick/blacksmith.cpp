@@ -1,0 +1,41 @@
+{
+  "name": "blacksmith-bdsl",
+  "displayName": "Blacksmith BDSL",
+  "description": "BDSL syntax checking, formatting and C++ generation using the native bdslc compiler.",
+  "version": "1.0.0",
+  "publisher": "blacksmith-local",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Formatters", "Themes"],
+  "main": "./src/extension.js",
+  "extensionKind": ["workspace"],
+  "activationEvents": ["onLanguage:bdsl", "onCommand:bdsl.compile"],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false, "description": "BDSL executes a configured native compiler." },
+    "virtualWorkspaces": { "supported": false }
+  },
+  "scripts": {
+    "test": "node --test test/client.test.js test/extension.test.js test/grammar.test.js",
+    "check": "node --check src/extension.js && node --check src/client.js"
+  },
+  "contributes": {
+    "languages": [{ "id": "bdsl", "aliases": ["BDSL", "Blacksmith DSL"], "extensions": [".bdsl"], "configuration": "./language-configuration.json" }],
+    "grammars": [{ "language": "bdsl", "scopeName": "source.bdsl", "path": "./syntaxes/bdsl.tmLanguage.json" }],
+    "themes": [
+      { "label": "BDSL Dark", "uiTheme": "vs-dark", "path": "./themes/bdsl-dark-color-theme.json" },
+      { "label": "BDSL Light", "uiTheme": "vs", "path": "./themes/bdsl-light-color-theme.json" }
+    ],
+    "snippets": [{ "language": "bdsl", "path": "./snippets/bdsl.json" }],
+    "commands": [{ "command": "bdsl.compile", "title": "BDSL: Compile Current File to C++", "enablement": "editorLangId == bdsl && isWorkspaceTrusted" }],
+    "menus": { "editor/context": [{ "command": "bdsl.compile", "when": "editorLangId == bdsl", "group": "bdsl" }] },
+    "configuration": {
+      "title": "BDSL",
+      "properties": {
+        "bdsl.compilerPath": { "type": "string", "default": "", "scope": "resource", "description": "Path to bdslc. Relative paths resolve against the document's workspace folder. Empty uses the bundled binary or a development build." },
+        "bdsl.checkDelay": { "type": "integer", "default": 250, "minimum": 0, "maximum": 5000, "description": "Delay in milliseconds before checking unsaved changes." }
+      }
+    },
+    "configurationDefaults": {
+      "[bdsl]": { "editor.defaultFormatter": "blacksmith-local.blacksmith-bdsl", "editor.formatOnSave": true, "editor.insertSpaces": true, "editor.tabSize": 4 }
+    }
+  }
+}

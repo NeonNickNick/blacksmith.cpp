@@ -1,0 +1,64 @@
+// Equivalent to warlock/warlock.cpp, including Mute and Alchemy.
+[skillset]("warlock") -> {
+    [skill]("magic") -> {
+        [check]() -> {
+            <require> Iron >= 1
+        }
+        [declare]() -> {
+            <use> 1 Iron
+            <resource>([type] Magic [power] 1)
+        }
+    }
+    [skill]([name] "magicattack" [id] MAGIC_ATTACK) -> {
+        [check]() -> {
+            <require> __N__ > 0
+            <require> Magic >= __N__
+        }
+        [declare]() -> {
+            <use> __N__ Magic
+            <repeat>(3) -> {
+                <attack>([type] Magical [power] 2 * __N__ [delay] __index__)
+            }
+        }
+    }
+    [skill]("magicshield") -> {
+        [check]() -> {
+            <require> __N__ > 0
+            <require> Magic >= __N__
+        }
+        [declare]() -> {
+            <use> __N__ Magic
+            <repeat>(3) -> {
+                <defense>([type] RealReduction [power] 3 * __N__ [delay] __index__)
+            }
+        }
+    }
+    [skill]("sacrifice") -> {
+        [check]() -> {
+            <require> MHP >= 2
+        }
+        [declare]() -> {
+            <use> 1 MHP
+            <resource>([type] Iron [power] 1.5)
+            <defense>([type] RealReduction [power] 7)
+        }
+    }
+    [skill]("mute") -> {
+        [check]() -> {
+        }
+        [declare]() -> {
+            <effect>([type] EraseResource [resource] Time [target] Enemy)
+            <effect>([type] EraseResource [resource] Space [target] Enemy)
+        }
+    }
+    [skill]("alchemy") -> {
+        [check]() -> {
+            <require> Iron >= 2.5
+        }
+        [declare]() -> {
+            <use> 2.5 Iron
+            <equip>("alchemy")
+            <disable> ALCHEMY
+        }
+    }
+}

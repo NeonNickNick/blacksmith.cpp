@@ -1,0 +1,53 @@
+// Equivalent to the existing cannon.cpp: taking a cannon mark consumes it.
+[skillset]("cannon") -> {
+    [skill]("strike") -> {
+        [check]() -> {
+            <require> Iron >= 1
+        }
+        [declare]() -> {
+            <use> 1 Iron
+            <takemark> @bonus@ CANNON
+            <attack>([type] Physical [power] 4 + min(@bonus@, 1))
+        }
+    }
+    [skill]("doublestrike") -> {
+        [check]() -> {
+            <require> Iron >= 2
+        }
+        [declare]() -> {
+            <use> 2 Iron
+            <takemark> @bonus@ CANNON
+            <attack>([type] Physical [power] 8 + min(@bonus@, 1))
+        }
+    }
+    [skill]("triplestrike") -> {
+        [check]() -> {
+            <require> Iron >= 3
+        }
+        [declare]() -> {
+            <use> 3 Iron
+            <takemark> @bonus@ CANNON
+            <attack>([type] Physical [power] 11 + min(@bonus@, 1))
+            <addmark>([id] CANNON)
+            <resource>([type] Iron [power] 0.5)
+        }
+    }
+    [skill]("apshell") -> {
+        [check]() -> {
+            <require> Iron >= 1
+        }
+        [declare]() -> {
+            <use> 1 Iron
+            <takemark> @bonus@ CANNON
+            <attack>([type] Physical [power] 2 + min(@bonus@, 1) [ap] 3 [interrupt] true)
+        }
+    }
+    [skill]("cannonbarrier") -> {
+        [check]() -> {}
+        [declare]() -> {
+            <defense>([type] CommonReduction [power] 2)
+            <takemark> @bonus@ CANNON
+            <attack>([type] Physical [power] 1 + min(@bonus@, 1))
+        }
+    }
+}

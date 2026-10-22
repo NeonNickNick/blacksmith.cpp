@@ -1,0 +1,29 @@
+/* Optional language features. This package reuses existing enum slots;
+   link it separately from packages registering the same skills. */
+[skillset]("sample") -> {
+    [skill]([name] "自定义攻击" [id] STICK) -> {
+        [check](!) -> {
+            <require> HP <= 0 || Iron < 1
+        }
+        [declare]() -> {
+            <countmark> @stacks@ CANNON
+            <if>(@stacks@ > 0 && count(CANNON) >= 1) -> {
+                <attack>([type] Real [power] floor(2 ^ 3 + abs(-1)))
+            }
+            <else> -> {
+                <use> 1 CommonIron
+                <resource>([type] GoldIron [power] max(0.5, 1 / 2) [delay] 1)
+            }
+            <defense>([type] CommonArmor [power] 5 [clock]([remain] 2))
+            <addmark>([id] CANNON [clock]([delay] 1 [isinfinite] true))
+            <recover> ceil(1.5)
+        }
+    }
+    [skill]("auto") -> {
+        [declare]() -> {
+            <if>(HP < MHP) -> {
+                <recover> 1
+            }
+        }
+    }
+}

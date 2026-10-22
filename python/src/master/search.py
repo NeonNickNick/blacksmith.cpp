@@ -26,9 +26,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
            depth=2, max_nodes=200000, batch_cells=4096):
     if (min(width, leaf_width, iterations, depth, max_nodes, batch_cells) <= 0
             or max(width, leaf_width) > engine.SKILL_NUM or depth > engine.ROUND_LIMIT):
-        raise ValueError('Positive search limits required; widths <=75, depth <=100')
-    if not hasattr(engine.SearchTree, 'subset'):
-        raise RuntimeError('Rebuild the native Master binding for deeper local search')
+        raise ValueError(f'Positive search limits required; widths <={engine.SKILL_NUM}, depth <={engine.ROUND_LIMIT}')
     observation, masks = arena.observe()
     root_width = min(width, int(masks.sum(-1).max()))
     root_choices = candidates(model, observation, masks, root_width, rng, device, 0)

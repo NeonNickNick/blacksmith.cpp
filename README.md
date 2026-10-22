@@ -18,6 +18,12 @@ C++20 规则引擎、原生 Python 绑定和 Master 神经网络自对弈训练�
 需要 Python 3.11、C++20 编译器、CMake、Ninja 和 uv。
 Windows 运行 `build.cmd`，Linux 运行 `bash build.sh`。
 当前机器已有可运行的 Python 环境和编译后的绑定。
+当前 Master schema 为 8；此前的权重和课程数据需要重新生成。
+
+规则中的技能包统一管理公共技能、职业、副装备和临时装备模式。
+根节点的职业只能选择一个；炼药锅是根节点副装备，炼金术是术士节点副装备，
+两者可以与职业及彼此共存，不改变职业身份。
+Monk、Prophet 已通过注释暂时停用，保留源码，当前启用八个职业。
 
 ## 本地对战
 
@@ -27,8 +33,11 @@ Windows 运行 `build.cmd`，Linux 运行 `bash build.sh`。
 ```
 
 开局回车或选 `0`：双方 0 iron；选 `1`：玩家 0.5 iron；选 `2`：玩家 1 iron。
-Master 始终为 0 iron。输入技能名加参数，如 `iron 0`、`stick 0`、`shield 2`。
-省略参数默认为 0，参数范围 0～5。不列出技能列表。
+Master 始终为 0 iron。输入格式为 `skill param skill param ...`，每组对应一个 `skill_action` 节点，
+如 `iron 0`、`shield 2`、`association 0 magicattack 3`。单个技能可以省略参数，默认为 0。
+Master 的参数范围通常为 0～5，`block` 为 1～4；`makebolts` 支持 0～5。不列出技能列表。
+联想按当前代码规则：消耗 2 Dream，免除被复制技能的成本；对手必须能使用后续技能，
+而自己当前不能使用该技能，且不能复制联想自身。C++ 双人客户端使用相同的输入格式。
 每次运行只玩一局。`resign`（或 `认输`）认输，`q` 直接退出。
 正常终局或认输后询问 `Replay the game? [y/N]`，选 `n` 或回车直接退出。
 选 `y` 从位置 0 开始复盘：`1` 查看双方搜索推荐前 3 个动作，`2` 按 `prev/next`
@@ -42,7 +51,7 @@ Master 始终为 0 iron。输入技能名加参数，如 `iron 0`、`stick 0`、
 ## 自对弈训练
 
 ```powershell
-python/.venv/Scripts/python.exe -m master train --mode free --device cpu --backbone residual --hidden 256 --depth 4 --history-width 64 --history-layers 1 --history-heads 4 --value-head sigmoid --output out/training
+python/.venv/Scripts/python.exe -m master train --mode free --device cpu --hidden 256 --depth 4 --history-width 64 --history-layers 1 --history-heads 4 --output out/training
 ```
 
 GPU 可用时改为 `--device cuda --precision bf16`。

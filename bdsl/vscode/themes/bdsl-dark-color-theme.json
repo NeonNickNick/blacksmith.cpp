@@ -1,0 +1,28 @@
+{
+  "$schema": "vscode://schemas/color-theme",
+  "name": "BDSL Dark",
+  "type": "dark",
+  "colors": { "editor.background": "#1E1E1E", "editor.foreground": "#D4D4D4" },
+  "tokenColors": [
+    { "scope": "comment", "settings": { "foreground": "#6A9955", "fontStyle": "italic" } },
+    { "scope": "string", "settings": { "foreground": "#CE9178" } },
+    { "scope": "constant.numeric", "settings": { "foreground": "#B5CEA8" } },
+    { "scope": "keyword", "settings": { "foreground": "#C586C0" } },
+    { "scope": "variable", "settings": { "foreground": "#9CDCFE" } },
+    { "scope": "support.function", "settings": { "foreground": "#DCDCAA" } },
+    { "scope": "storage.type", "settings": { "foreground": "#4EC9B0" } },
+    { "name": "BDSL blocks", "scope": "keyword.control.block.bdsl", "settings": { "foreground": "#FF9B85", "fontStyle": "bold" } },
+    { "name": "BDSL actions", "scope": "keyword.other.action.bdsl", "settings": { "foreground": "#B8DF96" } },
+    { "name": "BDSL flow and checks", "scope": ["keyword.control.flow.bdsl", "keyword.control.require.bdsl"], "settings": { "foreground": "#C586C0", "fontStyle": "bold" } },
+    { "name": "BDSL named parameters", "scope": "variable.parameter.bdsl", "settings": { "foreground": "#9CDCFE" } },
+    { "name": "BDSL magic fields", "scope": ["variable.language.skill-parameter.bdsl", "variable.language.repeat-index.bdsl"], "settings": { "foreground": "#FFD166", "fontStyle": "bold" } },
+    { "name": "BDSL mark variables", "scope": "variable.other.mark.bdsl", "settings": { "foreground": "#D8A5FF" } },
+    { "name": "BDSL resources", "scope": "support.type.resource.bdsl", "settings": { "foreground": "#56D4C8" } },
+    { "name": "BDSL enums and targets", "scope": ["constant.other.enum.bdsl", "constant.other.target.bdsl"], "settings": { "foreground": "#82C9FF" } },
+    { "name": "BDSL booleans", "scope": "constant.language.boolean.bdsl", "settings": { "foreground": "#569CD6" } },
+    { "name": "BDSL escapes", "scope": "constant.character.escape.bdsl", "settings": { "foreground": "#D7BA7D" } },
+    { "name": "BDSL invalid escapes", "scope": "invalid.illegal.escape.bdsl", "settings": { "foreground": "#F44747", "fontStyle": "underline" } },
+    { "name": "BDSL operators", "scope": "keyword.operator", "settings": { "foreground": "#D4D4D4" } },
+    { "name": "BDSL punctuation", "scope": "punctuation.section", "settings": { "foreground": "#D4D4D4" } }
+  ]
+}

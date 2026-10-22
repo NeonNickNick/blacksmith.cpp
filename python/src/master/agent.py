@@ -34,7 +34,7 @@ class Agent:
         observations, _ = arena.observe()
         state = torch.as_tensor(observations[0, seat], device=self.device).unsqueeze(0)
         _, values = self.model(state)
-        score = float(((self.model.signed_values(values) + 1) / 2).item())
+        score = float(values.item())
         if not np.isfinite(score) or not 0 <= score <= 1:
             raise ValueError('Invalid value-head prediction')
         return score

@@ -9,7 +9,7 @@
 #include <span>
 
 namespace blacksmith::python_bindings::master {
-inline constexpr int SCHEMA_VERSION = 3;
+inline constexpr int SCHEMA_VERSION = 8;
 inline constexpr int DELAY_BINS = 3;
 inline constexpr int CLOCK_LENGTH = 3;
 inline constexpr int ATTACK_UNIT_LENGTH = 4;
@@ -27,11 +27,16 @@ inline constexpr int PENDING_DEFENSE_OFFSET =
 inline constexpr int COMMON_ENCODING_LENGTH =
     PENDING_DEFENSE_OFFSET +
     static_cast<int>(defense_type::SIZE) * DELAY_BINS * DEFENSE_UNIT_LENGTH;
-inline constexpr int MARK_COUNT = static_cast<int>(mark_id::BLOODSIGIL) + 1;
+inline constexpr int MARK_COUNT = static_cast<int>(mark_id::SIZE);
 inline constexpr std::array RESOURCE_TYPES{
-    resource_type::IRON, resource_type::GOLD_IRON, resource_type::SPACE,
-    resource_type::TIME, resource_type::MAGIC,     resource_type::HP,
-    resource_type::MHP};
+    resource_type::IRON,    resource_type::GOLD_IRON,
+    resource_type::SPACE,   resource_type::TIME,
+    resource_type::MAGIC,   resource_type::HP,
+    resource_type::MHP,     resource_type::CROSS,
+    resource_type::DREAM,   resource_type::SPIRIT,
+    resource_type::FIRE,    resource_type::WATER,
+    resource_type::WOOD,    resource_type::EARTH,
+    resource_type::BOLT};
 inline constexpr int MARK_OFFSET = 4;
 inline constexpr int PENDING_RESOURCE_OFFSET =
     MARK_OFFSET + MARK_COUNT * DELAY_BINS * CLOCK_LENGTH;
@@ -41,21 +46,23 @@ inline constexpr int CALLBACK_OFFSET =
 inline constexpr int EFFECT_OFFSET =
     CALLBACK_OFFSET +
     static_cast<int>(callback_stage::SIZE) * DELAY_BINS * CLOCK_LENGTH;
-inline constexpr int PROFESSION_ENCODING_LENGTH =
+inline constexpr int EXTRA_STATE_OFFSET =
     EFFECT_OFFSET + 3 * DELAY_BINS * CLOCK_LENGTH;
+inline constexpr int EXTRA_RESOURCE_COUNT = static_cast<int>(RESOURCE_TYPES.size()) - 7;
+inline constexpr int PROFESSION_ENCODING_LENGTH =
+    EXTRA_STATE_OFFSET + EXTRA_RESOURCE_COUNT + 1;
 inline constexpr int GLOBAL_OFFSET =
     2 * (COMMON_ENCODING_LENGTH + PROFESSION_ENCODING_LENGTH);
-inline constexpr int STATE_FEATURES = GLOBAL_OFFSET + 2;
-inline constexpr int HISTORY_OFFSET = STATE_FEATURES;
+inline constexpr int HISTORY_OFFSET = GLOBAL_OFFSET + 2;
 inline constexpr int OBSERVATION_LENGTH =
-    STATE_FEATURES + HISTORY_LENGTH * HISTORY_TOKEN_LENGTH;
+    HISTORY_OFFSET + HISTORY_LENGTH * HISTORY_TOKEN_LENGTH;
 
 inline bool authorized(const community &player, skill move) {
-    const auto &skills = player.focus_.profession_.authorized_skills();
+    const auto &skills = player.focus_.skills_.authorized_skills();
     return std::ranges::find(skills, move) != skills.end();
 }
 inline int role(const community &player) {
-    return static_cast<int>(player.focus_.profession_.profession_);
+    return static_cast<int>(player.focus_.skills_.profession_);
 }
 inline int delay_bin(const clap_round_clock &clock) {
     return std::clamp(clock.delayed_rounds_, 0, DELAY_BINS - 1);
@@ -81,7 +88,7 @@ inline void encode_common(const community &player,
     out[4] = body.resource_.query(resource_type::SPACE) / 10.0F;
     out[5] = body.resource_.query(resource_type::TIME) / 10.0F;
     out[PROFESSION_ONE_HOT_OFFSET + role(player)] = 1.0F;
-    for (const auto move : body.profession_.authorized_skills())
+    for (const auto move : body.skills_.authorized_skills())
         out[AUTHORIZED_OFFSET + static_cast<int>(move)] = 1.0F;
     for (const auto &attack : body.turn_context_.attack_context_.datas_) {
         if (attack.clock_.is_dead() || attack.power_ <= 0)
@@ -127,7 +134,7 @@ encode_profession(const community &player,
     out[0] = body.resource_.query(resource_type::MAGIC) / 10.0F;
     out[1] = body.resource_.query_gold(resource_type::IRON) / 10.0F;
     out[2] = authorized(player, skill::MIDASTOUCH) ? 1.0F : 0.0F;
-    out[3] = body.profession_.have_extra_profession_ ? 1.0F : 0.0F;
+    out[3] = body.skills_.has_profession_ ? 1.0F : 0.0F;
     const auto clock = [&](int offset, const clap_round_clock &time,
                            float value = .5F) {
         add_clock(
@@ -159,6 +166,11 @@ encode_profession(const community &player,
         clock(EFFECT_OFFSET + target * DELAY_BINS * CLOCK_LENGTH,
               effect.clock_);
     }
+    for (std::size_t i = 7; i < RESOURCE_TYPES.size(); ++i)
+        out[EXTRA_STATE_OFFSET + static_cast<int>(i) - 7] =
+            body.resource_.query(RESOURCE_TYPES[i]) / 10.0F;
+    out[EXTRA_STATE_OFFSET + EXTRA_RESOURCE_COUNT] =
+        static_cast<float>(player.history_.size()) / ROUND_LIMIT;
 }
 inline std::array<float, OBSERVATION_LENGTH> encode(const state &game,
                                                     int seat) {
