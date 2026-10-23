@@ -1,4 +1,5 @@
 """Native schema, history, network and self-play contracts on CPU."""
+# 覆盖原生规则接口到训练目标的契约；小网络仅用于验证，不代表实际训练配置。
 import argparse
 import json
 from collections import Counter
@@ -28,6 +29,7 @@ class MasterTests(unittest.TestCase):
         torch.manual_seed(42)
 
     def model(self) -> Policy:
+        # 缩小网络以降低测试成本，同时保留残差、历史和 association 的全部结构。
         return Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
                                          history_heads=2, history_layers=1))
 
@@ -119,6 +121,7 @@ class MasterTests(unittest.TestCase):
         self.assertEqual(arena.status()["players"][0]["iron"], 0)
 
     def test_association_mask_branch_history_and_network(self) -> None:
+        # 同时检查真实掩码、假想分支和历史中的完整技能链，防止仅网络维度“看起来正确”。
         iron = action_named("iron")
         arena = engine.Arena(1, 1)
         arena.reset(0, [[iron, iron]] * 5 + [
@@ -263,6 +266,7 @@ class MasterTests(unittest.TestCase):
         self.assertEqual(int(arena.metadata()[0, 0]), 1)
 
     def test_padding_gradients_and_checkpoint(self) -> None:
+        # 给无效历史填充 NaN，验证它们在嵌入/投影前被屏蔽，而非碰巧取到了零输入。
         arena = engine.Arena(2, 1)
         arena.step(np.zeros((2, 2), np.int32))
         observations, masks = arena.observe()
@@ -344,6 +348,7 @@ class MasterTests(unittest.TestCase):
         np.testing.assert_allclose(policies.sum(-1), 1, atol=1e-6)
 
     def test_training_gradient_budget_and_safe_optimizer_checkpoint(self) -> None:
+        # 真正停止到指定梯度步后再恢复，检查 Adam 动量和计数，不只核对权重文件存在。
         with tempfile.TemporaryDirectory(dir=ROOT / 'out') as folder:
             parser = argparse.ArgumentParser()
             train.configure(parser)
@@ -434,6 +439,7 @@ class MasterTests(unittest.TestCase):
         self.assertEqual(int(other.metadata()[0, 0]), 1)
 
     def test_regret_matching_equilibrium_and_masks(self) -> None:
+        # 匹配硬币矩阵需要双方随机化，额外的非法行列不能污染求得的混合策略。
         payoffs = np.array([[[1, -1, 100], [-1, 1, 100], [-100, -100, -100]]], np.float32)
         valid = np.array([[1, 1, 0]], np.float32)
         first, second = solve_matrix(payoffs, valid, valid)
@@ -444,6 +450,7 @@ class MasterTests(unittest.TestCase):
         self.assertGreater(first[0, 0], .99)
 
     def test_curriculum_roles_and_replay_terminal_signs(self) -> None:
+        # 分别检查开局配比、双方价值符号、环形覆盖以及分层损失质量。
         entries = build(1, 42)
         self.assertEqual(len(entries), len(COURSE_PAIRS))
         self.assertEqual({entry.roles for entry in entries}, set(COURSE_PAIRS))
@@ -484,6 +491,7 @@ class MasterTests(unittest.TestCase):
                 self.assertAlmostEqual(float(weights[x[:, 0] == group].sum()), .6 / len(COURSE_PAIRS), places=6)
 
     def test_curriculum_rechecks_roles_after_dreamwake(self) -> None:
+        # 回溯可能撤销已获得的职业，课程生成器必须在真正收录前再次检查职业。
         from master.train import curriculum
         iron, fantasia, rewind = (action_named(name) for name in ('iron', 'fantasia', 'dreamwake'))
         pair = (engine.ROLES.index('phantombook'), engine.ROLES.index('warlock'))

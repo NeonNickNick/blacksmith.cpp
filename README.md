@@ -48,6 +48,12 @@ Master 的参数范围通常为 0～5，`block` 为 1～4；`makebolts` 支持 0
 每回合显示双方 HP、职业、资源和 Master 的网络预测百分比。
 该预测为预期得分：胜=1、负=0、和=0.5，并包含训练时间折扣。
 
+## 浏览器对战
+
+构建 Python 环境后运行 `server\start.cmd`。在同一网络的其他设备上打开
+服务器启动时打印的 `http://<本机IP>:8765/` 地址，即可通过图形界面与 Master 对战。
+用法及网络说明见 [server/README.md](server/README.md)。
+
 ## 自对弈训练
 
 ```powershell

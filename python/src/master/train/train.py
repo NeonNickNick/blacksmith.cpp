@@ -1,10 +1,12 @@
 """Self-play with search-policy targets and terminal-value targets."""
+# 训练主流程：原生并行对局 → 搜索策略 → 完整终局轨迹 → 分层 replay → 网络更新。
 import argparse
 from collections import Counter
 from dataclasses import asdict
 import os
 import hashlib
 import json
+from itertools import count
 from pathlib import Path
 import signal
 import time
@@ -20,15 +22,15 @@ from master.models.data import History
 from master.runtime import digest, settings, write_json
 from .replay import Starts, StratifiedReplay
 from .search import search
-from .sampling import COURSE_PAIRS, MIN_MIXED_BATCH, MIN_MIXED_REPLAY, masses
+from .sampling import MIN_MIXED_BATCH, MIN_MIXED_REPLAY, masses, course_pairs
 
 
 def run(args: argparse.Namespace) -> None:
     integers = (args.envs, args.threads, args.width, args.leaf_width, args.horizon,
-                args.updates, args.batches, args.batch_size, args.replay,
+                args.batches, args.batch_size, args.replay,
                 args.regret_iterations, args.save_every, args.warmup, args.hidden,
                 args.torch_threads)
-    if min(integers) <= 0 or max(args.width, args.leaf_width) > engine.SKILL_NUM or args.lr <= 0:
+    if min(integers) <= 0 or args.updates < 0 or max(args.width, args.leaf_width) > engine.SKILL_NUM or args.lr <= 0:
         raise ValueError("Invalid self-play configuration")
     if args.mode == "mixed" and (args.batch_size < MIN_MIXED_BATCH or args.replay < MIN_MIXED_REPLAY):
         raise ValueError(f"Mixed replay needs batch_size >= {MIN_MIXED_BATCH} and capacity >= {MIN_MIXED_REPLAY}")
@@ -51,6 +53,7 @@ def run(args: argparse.Namespace) -> None:
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     start_update = games = gradients = 0
     if args.resume:
+        # 恢复学习状态和累计计数；对局与 replay 在下方新建，不声称恢复未完成轨迹。
         saved: dict[str, Any] = torch.load(args.resume, map_location="cpu", weights_only=True)
         if saved.get("stage") != "selfplay":
             raise ValueError("--resume requires a self-play checkpoint; use --initial for a model-only checkpoint")
@@ -71,8 +74,8 @@ def run(args: argparse.Namespace) -> None:
         "initial_checkpoint_sha256": digest(source) if source else None,
         "rules_sha256": digest(engine.__file__), "schema_version": engine.SCHEMA_VERSION,
         "model_config": asdict(model.config), "device": str(device),
-        "replay_masses": masses(args.mode), "course_pairs": COURSE_PAIRS,
-        "bank_sha256": digest(args.bank) if args.mode == "mixed" else None,
+        "replay_masses": masses(args.mode), "course_pairs": course_pairs(args.mode),
+        "bank_sha256": digest(args.bank) if args.mode != "free" else None,
         "empty_replay": True, "prefixes_used_as_targets": False,
         "resume_scope": "model and optimizer; fresh replay and episodes"})
     histories: list[History] = [[] for _ in range(args.envs)]
@@ -88,10 +91,12 @@ def run(args: argparse.Namespace) -> None:
                          config=settings(args)), output / f"master-{start_update:04d}.pt")
     interrupted = []
     def request_stop(signum, frame):
+        # 信号处理只设置标记，真正的保存交给训练循环在安全边界执行。
         interrupted.append(signum)
     for signum in (signal.SIGTERM, signal.SIGINT):
         signal.signal(signum, request_stop)
     def stop_reason():
+        # 时间和梯度上限均可独立停止；0 表示不设该上限，中断信号优先。
         if interrupted:
             return "signal"
         if args.max_seconds and time.monotonic() - start >= args.max_seconds:
@@ -100,6 +105,7 @@ def run(args: argparse.Namespace) -> None:
             return "gradient_budget"
         return None
     collected = 0
+    association_legal_positions = association_actions = 0
     def trace_path(name):
         return output / name if args.record_games else Path(os.devnull)
 
@@ -112,13 +118,16 @@ def run(args: argparse.Namespace) -> None:
             group, prefix = starts.next()
             groups[env] = group
             arena.reset(env, prefix)
+            # 前缀只重建开局，histories 不含这些动作，因此不会把课程当作示范答案。
             started[str(group)] += 1
             start_log.write(json.dumps({"env": env, "game": generations[env],
                                         "group": group, "prefix": prefix}) + "\n")
 
         for env in range(args.envs):
             reset(env)
-        for local_update in range(1, args.updates + 1):
+        iterations = range(1, args.updates + 1) if args.updates else count(1)
+        # local_update 管本阶段 warmup；update/gradients/games 则接续 checkpoint 的累计值。
+        for local_update in iterations:
             update = start_update + local_update
             model.eval()
             search_start = time.monotonic()
@@ -126,6 +135,8 @@ def run(args: argparse.Namespace) -> None:
                 if stop_reason():
                     break
                 observations, masks = arena.observe()
+                # 统计 association 的真实合法机会与行为选择次数，不把它们视作正确率。
+                association_legal_positions += int((masks[..., engine.BASE_ACTION_COUNT:] > 0).any(-1).sum())
                 roles_before = arena.metadata()[:, 1:]
                 with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
                                     enabled=args.precision == "bf16"):
@@ -133,6 +144,7 @@ def run(args: argparse.Namespace) -> None:
                                                args.leaf_width, args.regret_iterations, .15,
                                                (observations, masks))
                 collected += 2 * args.envs
+                association_actions += int((choices >= engine.BASE_ACTION_COUNT).sum())
                 for env in range(args.envs):
                     histories[env].append((observations[env].copy(), masks[env].copy(), policies[env].copy()))
                     observed_roles.update(str(int(role)) for role in roles_before[env])
@@ -143,6 +155,7 @@ def run(args: argparse.Namespace) -> None:
                                 f"{choices[env, 0]},{choices[env, 1]},{outcome},{result[2]},{result[3]}\n")
                     if not outcome:
                         continue
+                    # 只有终局后才知道价值目标；中断时未完成局不会进入 replay。
                     replay.add(groups[env], histories[env], outcome)
                     histories[env].clear()
                     roles = [int(result[4]), int(result[5])]
@@ -159,12 +172,14 @@ def run(args: argparse.Namespace) -> None:
             learner_start = time.monotonic()
             losses: list[list[float]] = []
             ready = replay.ready(args.batch_size)
+            # warmup 结束且每个采样分层就绪后才更新，避免专项或自由层空缺时歪曲配比。
             if local_update >= args.warmup and ready:
                 for _ in range(args.batches):
                     if stop_reason():
                         break
                     fraction = min(1., gradients / args.max_gradient_steps) if args.max_gradient_steps else 0.
                     if args.max_seconds:
+                        # 恢复时 offset 接上已消耗的余弦日程，不给新阶段重置一轮高学习率。
                         fraction = max(fraction, min(1., (time.monotonic() - start + args.lr_time_offset)
                                                       / (args.max_seconds + args.lr_time_offset)))
                     lr = float(args.min_lr + .5 * (args.lr - args.min_lr) * (1 + np.cos(np.pi * fraction)))
@@ -176,6 +191,7 @@ def run(args: argparse.Namespace) -> None:
                                         enabled=args.precision == "bf16"):
                         logits, values = model(x, value_logits=True)
                         pl = (-(policy_t * masked_log_probs(logits, masks_t)).sum(-1) * weights).sum()
+                        # replay 保存 [-1,1] 折扣收益；映射到 [0,1] 后用原始 logits 做 BCE。
                         target = (value_t + 1) * .5
                         vl = (F.binary_cross_entropy_with_logits(values.float(), target,
                                                                  reduction="none") * weights).sum()
@@ -193,6 +209,8 @@ def run(args: argparse.Namespace) -> None:
                       "search_seconds": search_seconds,
                       "learner_seconds": time.monotonic() - learner_start,
                       "collected_player_positions": collected,
+                      "association_legal_player_positions": association_legal_positions,
+                      "association_actions": association_actions,
                       "replay_draws": (gradients - (saved["gradient_steps"] if args.resume else 0)) * args.batch_size,
                       "learning_rate": optimizer.param_groups[0]["lr"],
                       "loss": np.mean(losses, axis=0).tolist() if losses else [],
@@ -204,6 +222,7 @@ def run(args: argparse.Namespace) -> None:
             write_json(output / "progress.json", status)
             ending = stop_reason()
             if update % args.save_every == 0 or local_update == args.updates or ending:
+                # 使用临时 checkpoint 原子替换；外部下载/恢复只读取写完的 .pt。
                 destination = output / f"master-{update:04d}.pt"
                 temporary = destination.with_suffix(".tmp")
                 torch.save(checkpoint(model, stage="selfplay", update=update, games=games,
@@ -221,7 +240,7 @@ def run(args: argparse.Namespace) -> None:
 
 
 def configure(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--mode", choices=("free", "mixed"), default="mixed")
+    parser.add_argument("--mode", choices=("free", "mixed", "phantombook"), default="mixed")
     parser.add_argument("--bank")
     parser.add_argument("--record-games", action="store_true", help="Save optional per-move and episode trace logs")
     parser.add_argument("--output", required=True)

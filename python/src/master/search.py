@@ -1,4 +1,5 @@
 """Bounded, iterative deepening for local simultaneous-action play."""
+# 本地搜索复用训练版的候选生成与矩阵求解，但可在预算内递归更多完整回合。
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,6 +11,7 @@ from .train.search import DISCOUNT, candidates, matrix, terminals
 
 @dataclass
 class SearchInfo:
+    # completed_depth 只记录完整求解的深度；不能把中途用尽预算的一层算作完成。
     requested_depth: int
     completed_depth: int = 0
     expanded_nodes: int = 0
@@ -18,6 +20,7 @@ class SearchInfo:
 
 
 class NodeBudgetExceeded(RuntimeError):
+    # 仅用于中止当前加深层；外层保留前一层的完整策略作为回退。
     pass
 
 
@@ -30,6 +33,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
     observation, masks = arena.observe()
     root_width = min(width, int(masks.sum(-1).max()))
     root_choices = candidates(model, observation, masks, root_width, rng, device, 0)
+    # 各加深层复用同一批根候选，避免候选抽样变化干扰深度比较和复盘排序。
     info = SearchInfo(depth, root_candidates=root_choices.copy())
 
     def evaluate(tree, states, legal, remaining, choices=None, root=False):
@@ -44,6 +48,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
         for start in range(0, count, batch):
             stop = min(start + batch, count)
             cells = (stop - start) * branch_width * branch_width
+            # 一个联合节点是一对同时行动；分支数按 width² 增长，而不是轮流交替。
             if info.expanded_nodes + cells > max_nodes:
                 raise NodeBudgetExceeded()
             info.expanded_nodes += cells
@@ -53,6 +58,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
             live = np.flatnonzero(outcomes.reshape(-1) == 0)
             payoffs = np.zeros(cells, np.float32)
             if len(live):
+                # 只递归尚未终局的分支；叶子使用双方视角价值差构造零和收益。
                 if remaining > 1:
                     child_values, _ = evaluate(subtree.subset(live.tolist()),
                         child_states[live], child_masks[live], remaining - 1)
@@ -77,6 +83,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
 
     best = None
     for current_depth in range(1, depth + 1):
+        # 节点预算累计覆盖所有加深层，抛出异常时绝不使用未完成层的局部结果。
         try:
             _, policy = evaluate(engine.SearchTree(arena), observation, masks,
                                  current_depth, root_choices, root=True)
@@ -88,6 +95,7 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
     if best is None:
         raise ValueError(f'--search-nodes must be at least {arena.count * root_width ** 2} for this root')
     play = best.astype(np.float64)
+    # 从求得的混合策略抽样；直接 argmax 会丢掉同时行动博弈需要的随机性。
     play /= play.sum(-1, keepdims=True)
     cumulative = play.cumsum(-1)
     cumulative[..., -1] = 1

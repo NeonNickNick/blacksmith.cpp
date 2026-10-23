@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101413">
+  <title>Blacksmith Master · 对战</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Blacksmith Master 首页">
+        <span class="brand-mark">B</span>
+        <span><strong>BLACKSMITH</strong><small>MASTER ARENA</small></span>
+      </a>
+      <div class="connection"><i></i><span id="connection-label">正在连接本机引擎</span></div>
+    </header>
+
+    <main>
+      <section id="lobby" class="lobby">
+        <div class="intro">
+          <p class="eyebrow">LOCAL MODEL · REMOTE PLAY</p>
+          <h1>与 Master<br><em>开始一场对局</em></h1>
+          <p class="intro-copy">规则、模型和本地 play 命令共用同一套实现。选择开局铁量后即可开始。</p>
+        </div>
+        <div class="setup-card">
+          <div class="card-heading"><span class="step">01</span><div><h2>对局设置</h2><p>Master 始终从 0 iron 开始</p></div></div>
+          <label class="field-label" for="iron-options">你的开局铁量</label>
+          <div class="iron-options" id="iron-options">
+            <button class="iron-choice selected" data-iron="0"><strong>0</strong><span>标准开局</span></button>
+            <button class="iron-choice" data-iron="0.5"><strong>0.5</strong><span>半铁开局</span></button>
+            <button class="iron-choice" data-iron="1"><strong>1</strong><span>一铁开局</span></button>
+          </div>
+          <p class="field-note model-note">Master 使用固定模型 master-0099。</p>
+          <button id="start-button" class="primary-button"><span>开始对局</span><b>↗</b></button>
+          <p id="lobby-error" class="error-message" role="alert"></p>
+        </div>
+      </section>
+
+      <section id="match" class="match hidden">
+        <div class="match-heading">
+          <div><p id="mode-kicker" class="eyebrow">SIMULTANEOUS ROUND</p><h1 id="match-title">对局中</h1></div>
+          <div class="round-chip"><span>ROUND</span><strong id="round-number">01</strong></div>
+        </div>
+        <div id="last-actions" class="last-actions hidden"></div>
+        <div id="result-banner" class="result-banner hidden" role="status"></div>
+
+        <div class="battle-grid">
+          <article id="player-card" class="combatant player-card"></article>
+          <div class="versus"><span>VS</span><i></i></div>
+          <article id="master-card" class="combatant master-card"></article>
+        </div>
+
+        <div class="score-panel">
+          <div><span class="panel-label">MASTER VALUE ESTIMATE</span><strong id="master-score">—</strong></div>
+          <p>Master 价值头的预期得分<br>胜 = 100% · 和 = 50% · 负 = 0%</p>
+          <div id="commit-state" class="commit-state"><i></i> Master 已提交本回合动作</div>
+        </div>
+
+        <section id="play-controls" class="action-panel">
+          <div class="action-title"><div><p class="eyebrow">YOUR MOVE</p><h2>选择行动</h2></div><span id="legal-count" class="legal-count"></span></div>
+          <form id="action-form">
+            <label for="action-input" class="field-label">技能与参数</label>
+            <div class="action-entry"><input id="action-input" class="text-control" list="legal-actions" autocomplete="off" placeholder="例如：association 0 magicattack 3" required><datalist id="legal-actions"></datalist><button class="primary-button" type="submit">出招 <b>↗</b></button></div>
+            <p id="action-help" class="field-note">输入格式与 play.cmd 相同。自动补全仅显示当前可用技能。</p>
+            <div class="action-footer"><button id="resign-button" class="text-button" type="button">认输</button><span id="action-error" class="error-message" role="alert"></span></div>
+          </form>
+        </section>
+
+        <section id="review-controls" class="review-panel hidden">
+          <div class="action-title"><div><p class="eyebrow">GAME REVIEW</p><h2>对局复盘</h2></div><span id="review-position" class="legal-count"></span></div>
+          <div class="review-buttons"><button id="prev-button" class="secondary-button">← 上一回合</button><button id="next-button" class="secondary-button">下一回合 →</button></div>
+          <div class="review-buttons"><button id="recommend-button" class="secondary-button">查看双方推荐</button><button id="trial-button" class="secondary-button">从此处试玩</button></div>
+          <div id="recommendations" class="recommendations hidden"></div>
+        </section>
+
+        <div class="bottom-actions"><button id="new-game-button" class="text-button">返回设置</button><span>对局记录保存在服务器内存中</span></div>
+      </section>
+    </main>
+    <footer><span>BLACKSMITH · MASTER</span><span>同一规则引擎 · 本地模型推理</span></footer>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

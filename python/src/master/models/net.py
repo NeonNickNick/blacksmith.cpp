@@ -1,4 +1,5 @@
 """Residual policy with mandatory history attention and association actions."""
+# 编码切片和动作编号由原生 schema 决定；模型不能自行改变这些布局。
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ class ModelConfig:
     history_heads: int = 4
 
     def __post_init__(self) -> None:
+        # 联想动作与普通动作一一配对；维度校验防止旧权重静默套用新规则。
         if self.hidden < 8 or self.depth < 1 or self.history_layers < 1:
             raise ValueError("Residual depth and history layer count must be positive; hidden width must be >= 8")
         if self.actions != 2 * engine.BASE_ACTION_COUNT:
@@ -57,10 +59,12 @@ class HistoryEncoder(nn.Module):
         actions = self.actions(indices).flatten(-2)
         base = torch.where(valid.unsqueeze(-1), indices % engine.BASE_ACTION_COUNT,
                            engine.BASE_ACTION_COUNT)
+        # 完整动作嵌入区分是否联想；基础动作嵌入让两种用法共享技能信息。
         actions = actions + self.base_actions(base).flatten(-2)
         numeric = torch.where(valid.unsqueeze(-1), history[..., 3:], 0)
         tokens = actions + self.numeric(numeric) + self.position
         tokens = torch.cat((self.summary.expand(history.shape[0], -1, -1), tokens), dim=1)
+        # summary 永远有效，空历史也有可读出的 token，避免整行注意力全部被屏蔽。
         padding = torch.cat((torch.zeros_like(valid[:, :1]), ~valid), dim=1)
         return self.encoder(tokens, src_key_padding_mask=padding)[:, 0]
 
@@ -74,6 +78,7 @@ class ResidualBlock(nn.Module):
         self.scale = blocks ** -.5
 
     def forward(self, x: Tensor) -> Tensor:
+        # 保留恒等路径，并随总块数缩小每条残差分支，控制深层主干的更新尺度。
         return x + self.scale * self.branch(x)
 
 
@@ -117,6 +122,7 @@ class Policy(nn.Module):
         if observation.shape[-1] != self.config.features:
             raise ValueError("Observation dimensions do not match the model")
         shape = observation.shape[:-1]
+        # 展平任意批量前缀，最终还原；训练可一次输入“环境 × 双方视角”。
         flat = observation.reshape(-1, self.config.features)
         common, profession = engine.COMMON_ENCODING_LENGTH, engine.PROFESSION_ENCODING_LENGTH
         parts = [self.public(flat[:, :common]), self.public(flat[:, common:2 * common]),
@@ -127,10 +133,12 @@ class Policy(nn.Module):
         parts.append(self.history(past))
         hidden = self.body(torch.cat(parts, dim=-1))
         logits = self.actor(hidden)
+        # 前半为普通动作 b，后半为 b+r+g；合法性归一化在完整动作空间统一执行。
         borrowed = logits + self.association_actor(hidden) + self.association_gate(hidden)
         logits = torch.cat((logits, borrowed), dim=-1)
         logits = logits.reshape(*shape, self.config.actions)
         raw = self.critic(hidden).reshape(shape)
+        # 训练取原始 logits 使用稳定的 BCE；推理默认输出 [0,1] 预期得分。
         values = raw if value_logits else raw.sigmoid()
         return logits, values
 
@@ -142,10 +150,12 @@ class Policy(nn.Module):
 def masked_log_probs(logits: Tensor, masks: Tensor) -> Tensor:
     if logits.shape != masks.shape or not masks.bool().any(-1).all():
         raise ValueError("Every policy row needs at least one legal action")
+    # 即使主干用 BF16，softmax 仍在 FP32 中计算，并排除所有原生判定的非法动作。
     return logits.float().masked_fill(~masks.bool(), -1e9).log_softmax(-1)
 
 
 def checkpoint(model: Policy, **metadata: Any) -> dict[str, Any]:
+    # 模型参数转到 CPU 保存；训练入口另外传入 Adam 状态与累计更新计数。
     return {**metadata, "model": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()},
             "architecture": ARCHITECTURE, "model_config": asdict(model.config),
             "schema_version": engine.SCHEMA_VERSION,
@@ -153,6 +163,7 @@ def checkpoint(model: Policy, **metadata: Any) -> dict[str, Any]:
 
 
 def load(path: str | Path) -> Policy:
+    # 先核对规则 schema 与架构标记，再按保存的配置建网；不猜测旧模型格式。
     data: dict[str, Any] = torch.load(path, map_location="cpu", weights_only=True)
     if (data.get("schema_version") != engine.SCHEMA_VERSION or
             data.get("features") != engine.OBSERVATION_LENGTH or

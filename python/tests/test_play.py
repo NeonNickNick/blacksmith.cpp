@@ -1,4 +1,5 @@
 """Per-game model selection and bounded simultaneous search contracts."""
+# 使用脚本化交互和可控搜索树验证 play；测试不依赖当前发布的模型数量或强度。
 import argparse
 import contextlib
 import io
@@ -19,6 +20,7 @@ from master.train.search import search as training_search
 
 
 class ToyModel(torch.nn.Module):
+    # 故意给浅层误导估值；更深层的规则终局应覆盖它，用来检查深度是否真的生效。
     def forward(self, states):
         x = states[..., 0]
         values = torch.where(x.abs() == 1, .8 * x.sign(), -.8 * x.sign())
@@ -29,6 +31,7 @@ class ToyModel(torch.nn.Module):
 
 
 class ToyArena:
+    # 提供真实编码尺寸的最小批量接口，避免把网络布局问题混入树搜索测试。
     count = 1
 
     def observe(self):
@@ -39,6 +42,7 @@ class ToyArena:
 
 
 class ToyTree:
+    # 可预测的两层分支：subset/expand 接口与原生树一致，但胜负由测试构造控制。
     def __init__(self, arena=None, parents=None):
         self.parents = [0] if parents is None else parents
 
@@ -119,6 +123,7 @@ class PlayTests(unittest.TestCase):
         np.testing.assert_allclose(policies.sum(-1), 1)
 
     def test_model_pool_reproducibility_and_all_five_models(self):
+        # 五个文件是临时抽样夹具，不要求 models 目录保留五个真实训练 checkpoint。
         with tempfile.TemporaryDirectory() as folder:
             for i in range(5):
                 (Path(folder) / f'master-{i+1:02d}.pt').touch()
@@ -215,6 +220,7 @@ class PlayTests(unittest.TestCase):
         self.assertEqual(arena.status()['players'][1]['hp'], 0)
 
     def test_one_match_only_and_review_prompt_after_resign_or_terminal(self):
+        # 覆盖认输和规则终局两条退出路径，均只进入一次复盘选择，不重开下一局。
         class Agent:
             last_search = None
 
@@ -295,14 +301,17 @@ class PlayTests(unittest.TestCase):
 
         parser = argparse.ArgumentParser()
         play.configure(parser)
-        args = parser.parse_args(['--seed', '42'])
-        with patch('master.play.Agent', return_value=Agent()), \
-             patch('builtins.input', side_effect=['', 'resign', 'n']), \
-             contextlib.redirect_stdout(io.StringIO()) as output:
-            play.run(args)
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / 'master-01.pt').touch()
+            args = parser.parse_args(['--seed', '42', '--checkpoint-dir', folder])
+            with patch('master.play.Agent', return_value=Agent()), \
+                 patch('builtins.input', side_effect=['', 'resign', 'n']), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                play.run(args)
         self.assertEqual(output.getvalue().count('Player: 0 iron | Master: 0 iron'), 1)
 
     def test_timeline_reconstructs_from_opening_including_history_and_terminal(self):
+        # 按相同起点重放并比较完整编码，确保复盘不仅还原可见资源，也保留历史。
         iron, stick = play.parse_action('iron'), play.parse_action('stick')
         record = play.GameRecord(.5)
         arena = record.state_at(0, 1)
@@ -374,6 +383,7 @@ class PlayTests(unittest.TestCase):
         np.testing.assert_array_equal(displayed[-1], record.state_at(1, 1).observe()[0])
 
     def test_analysis_is_deterministic_legal_and_does_not_change_live_rng_or_state(self):
+        # 查看推荐属于只读分析，既不能推进真实局面，也不能消耗正式落子的随机流。
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'model.pt'
             model = Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2))
@@ -421,11 +431,13 @@ class PlayTests(unittest.TestCase):
         agent = Agent()
         parser = argparse.ArgumentParser()
         play.configure(parser)
-        args = parser.parse_args(['--starting-iron', '0.5'])
-        with patch('master.play.Agent', return_value=agent) as constructor, \
-             patch('builtins.input', side_effect=['iron', 'resign', 'yes']), \
-             patch('master.play.replay_game') as review, contextlib.redirect_stdout(io.StringIO()):
-            play.run(args)
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / 'master-01.pt').touch()
+            args = parser.parse_args(['--starting-iron', '0.5', '--checkpoint-dir', folder])
+            with patch('master.play.Agent', return_value=agent) as constructor, \
+                 patch('builtins.input', side_effect=['iron', 'resign', 'yes']), \
+                 patch('master.play.replay_game') as review, contextlib.redirect_stdout(io.StringIO()):
+                play.run(args)
         constructor.assert_called_once()
         record, reviewed_agent, threads = review.call_args.args
         self.assertIs(reviewed_agent, agent)

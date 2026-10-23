@@ -167,7 +167,7 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 | Foretold | 1 iron | 闪避所有直接伤害 |
 | GreatestCaution | 1 Crystal | 下次闪避时，如果闪避成功，下回合反伤4RATK |
 | Revelation | 1 Iron | 下次闪避时，如果闪避成功，额外获得一个Crystal |
-| Assertion | 0 | 闪避所有直接伤害，但如果对方这回合没有攻击，失去2HP |
+| Assertion | 0 | 预测对方本回合使用技能，如果预测正确，闪避所有直接伤害，且获得1 CrystalBall |
 | CrystalWall | 1 CrystalBall | 7RDEF * 2回合，100%物理反伤（反为魔法伤害），且如果该RDEF受到攻击则返还1Crystal |
 | Refraction | 要求持有CrystalBall | 50%伤减 |
 | Ultimatum | 1 CrystalBall + 2 Crystal | 宣告一个正整数n，要求n > 5，n回合后追加12RATK |

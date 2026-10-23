@@ -5,10 +5,13 @@ replay 与自对弈训练。训练仅使用 Master 自对弈。
 
 ## 模型和数据
 
-保留的五个模型均为 hidden=256、4 个残差块、history width=64、1 层 Transformer、
+当前模型采用 hidden=256、4 个残差块、history width=64、1 层 Transformer、
 4 个注意力头、Sigmoid 价值头。残差分支为 LayerNorm → Linear → SiLU → Linear，
-按 `1/sqrt(depth)` 缩放。这些权重使用旧的 schema 3（75 个动作），与新增职业后的
-schema 8 不兼容；需要重新训练权重再运行 Master 对战。
+按 `1/sqrt(depth)` 缩放。当前本地默认权重 `master-0099.pt` 使用 schema 8；
+暂停后下载的 `master-0117.pt` 独立保存在 `out/cloud-training` 的结果目录中，没有替换默认权重。
+旧 schema 3（75 个动作）权重不兼容当前架构。
+
+各个 Python 文件的职责和阅读顺序见 [Python 文件索引](../../README.md#每个-python-文件的作用)。
 
 当前 `SCHEMA_VERSION=8`，策略头输出 266 个动作，每个视角的 observation 为
 1458 维 float32。Monk、Prophet 暂时通过注释停用。一般技能参数为 0～5，格挡为 1～4。
@@ -53,6 +56,11 @@ python/.venv/Scripts/python.exe -m master train --mode free --hidden 256 --depth
 ```
 
 `--mode free` 从双方 0 iron、空历史开始。
+`--mode phantombook --bank PATH` 使用 50% 自由开局和 50% 幻影书专项开局，
+replay 也按 50/50 分层抽样；专项均衡覆盖幻影书与其他启用职业的双方席位组合。
+可用 `python -m master curriculum --focus-role phantombook --association-ready --output PATH`
+生成合法前缀起点，使至少一名幻影书玩家拥有可用的 association 动作；不把前缀当作学习目标，
+也不强迫模型在后续对局中选择该动作。专项排除同职业镜像，因为借用技能主要需要不同职业对手。
 可选 `--mode mixed --bank PATH` 为 Master 自对弈加入课程起点；课程自动覆盖所有启用职业，
 目前为八职业的 64 个有序组合，抽样权重为自由 40%、课程 60%。课程前缀不是训练目标。
 当前混合训练最小 batch 为 107，最小 replay 容量为 6827；旧课程库需要重新生成。
@@ -68,6 +76,8 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 `--max-seconds` 或 `--max-gradient-steps` 达到任一上限便保存并结束。
 `--resume PATH` 保留权重、Adam 状态及累计计数，重新构建 replay 和对局；
 `--initial PATH` 只载入模型。`--lr-time-offset` 可接续学习率的时间进度。
+`--updates 0 --max-seconds 0 --max-gradient-steps 0` 持续训练到收到中断信号，
+中断后保存最终 checkpoint。若需固定学习率，可将 `--lr` 和 `--min-lr` 设为相同值。
 
 默认只保存 checkpoint、配置、进度和完成信息，不产生逐步动作与对局追踪文件。
 `--record-games` 显式开启 moves CSV、starts JSONL 和 terminals JSONL。
@@ -79,7 +89,7 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 .\play.cmd --starting-iron 0 --search-depth 3 --width 24 --leaf-width 4 --search-nodes 200000
 ```
 
-每次运行只玩一局，均匀随机选择 `models/blacksmith-master/master-01.pt` 至 `master-05.pt` 中一个。
+每次运行只玩一局，默认加载 `models/blacksmith-master/` 中的 `.pt` 权重；当前仅保留新训练的 `master-0099.pt`。
 `--checkpoint PATH` 固定权重；`--checkpoint-dir PATH` 指定随机池；`--seed` 可复现抽样。
 默认回车或选 `0` 双方 0 iron；`1` 玩家 0.5 iron；`2` 玩家 1 iron，Master 始终为 0。
 

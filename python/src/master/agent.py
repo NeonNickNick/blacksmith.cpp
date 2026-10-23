@@ -1,4 +1,5 @@
 """A frozen master network with simultaneous matrix search."""
+# Agent 只做推理：模型固定，落子与复盘分析使用相互独立的随机数流。
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,7 @@ class Agent:
         self.device = torch.device(device)
         self.model = load(checkpoint).to(self.device).eval()
         self.rng = np.random.default_rng(seed)
+        # 分析按同一种子重新建 RNG，查看推荐不会改变下一次正式落子的抽样。
         self.analysis_seed = seed
         self.width, self.leaf_width, self.iterations = width, leaf_width, iterations
         self.search_depth, self.max_nodes, self.batch_cells = search_depth, max_nodes, batch_cells
@@ -32,6 +34,7 @@ class Agent:
         if arena.count != 1 or seat not in (0, 1):
             raise ValueError('Agent.predict_score expects one game and seat 0 or 1')
         observations, _ = arena.observe()
+        # 原生 observe 已经提供两个视角，seat 决定“自己”的资源和历史方向。
         state = torch.as_tensor(observations[0, seat], device=self.device).unsqueeze(0)
         _, values = self.model(state)
         score = float(values.item())
@@ -44,6 +47,7 @@ class Agent:
         if arena.count != 1 or arena.status(0)['outcome']:
             raise ValueError('Analysis requires one ongoing game')
         from .search import search as local_search
+        # 至少保留三个根候选以支持前三推荐；合法动作少于三个时仍只列真实候选。
         _, policies, info = local_search(self.model, arena,
             np.random.default_rng(self.analysis_seed), self.device,
             max(3, self.width), self.leaf_width, self.iterations,
@@ -53,6 +57,7 @@ class Agent:
     def choose(self, arena: engine.Arena, seat: int = 0) -> int:
         if arena.count != 1 or seat not in (0, 1):
             raise ValueError("Agent.choose expects one game and seat 0 or 1")
+        # 未指定本地深度时复用训练版两回合搜索；play 命令通常显式提供深度。
         if self.search_depth is None:
             actions, _ = search(self.model, arena, self.rng, self.device,
                                 self.width, self.leaf_width, self.iterations)

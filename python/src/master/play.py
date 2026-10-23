@@ -1,4 +1,5 @@
 """A command-line match; the AI commits before human input."""
+# 单局对战、原局复盘和临时试玩共用规则引擎，但只有正式对局写入 GameRecord。
 import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +48,7 @@ def print_status(arena, human_seat: int, finished=False) -> None:
 
 
 class CheckpointPool:
+    # 默认扫描目录内现有 .pt；只有一个文件时自然固定，不要求存在五个旧权重。
     def __init__(self, checkpoint=None, directory=None, seed=None):
         self.paths = [Path(checkpoint)] if checkpoint else sorted(Path(directory or DEFAULT_CHECKPOINT_DIR).glob('*.pt'))
         if not self.paths or any(not path.is_file() for path in self.paths):
@@ -69,6 +71,7 @@ class GameRecord:
             raise ValueError('Review position outside the recorded game')
         arena = engine.Arena(1, threads)
         arena.reset_play(0, self.human_seat, self.iron)
+        # position=N 表示已经完成 N 回合，0 是保留原始铁量模式的开局。
         # There is no undo: reconstruct the complete rules state and history.
         for actions in self.moves[:position]:
             arena.step(np.array([actions], np.int32), reset_finished=False)
@@ -98,6 +101,7 @@ def play_round(arena, agent, human_seat: int, trial=False):
     print_status(arena, human_seat)
     print_prediction(arena, agent, human_seat)
     chosen = agent.choose(arena, ai_seat)
+    # Master 在玩家输入前承诺动作；无效输入只重问玩家，不能让 Master 重新抽样。
     if agent.last_search:
         info = agent.last_search
         print(f'Search depth {info.completed_depth}/{info.requested_depth} | '
@@ -141,6 +145,7 @@ def recommendations(arena, agent, human_seat: int, cached=None):
     print(f'Top searched actions | depth {info.completed_depth}/{info.requested_depth} '
           f'| nodes {info.expanded_nodes} | weights are search-policy weights')
     for label, seat in (('Player', human_seat), ('Master', 1 - human_seat)):
+        # 只在真正被根搜索考察的动作中排序；策略权重不是该动作的单独胜率。
         candidates = set(int(action) for action in info.root_candidates[0, seat] if action >= 0)
         ranked = sorted(candidates, key=lambda action: (-float(policy[seat, action]), action))[:3]
         print(f'{label} top {len(ranked)}:')
@@ -155,6 +160,7 @@ def try_position(arena, agent, human_seat: int) -> bool:
         print('Cannot start a trial from a terminal position.')
         return False
     print('Trial: enter skill param [skill param ...]; 4/back returns to the trial start; resign ends the trial; q exits.')
+    # 此处直接推进重建出的临时 Arena，不添加原局动作，也不提供前后导航。
     while True:
         command, _, outcome = play_round(arena, agent, human_seat, trial=True)
         if command == 'quit':
@@ -171,6 +177,7 @@ def try_position(arena, agent, human_seat: int) -> bool:
 
 def replay_game(record: GameRecord, agent, threads: int) -> None:
     position = 0
+    # 每个复盘位置的推荐缓存独立；同一位置重复查看不会重新消耗搜索。
     analyses = {}
     print(f'Recorded game: {record.ending}')
     while True:
@@ -214,6 +221,7 @@ def replay_game(record: GameRecord, agent, threads: int) -> None:
             else:
                 print('Use prev or next to move exactly one round.')
         elif command == '3':
+            # 返回时 position 不变；下一轮从记录重建，试玩中的状态变化全部丢弃。
             if try_position(arena, agent, record.human_seat):
                 return
             print(f'Returned to trial starting position {position}.')
@@ -239,6 +247,7 @@ def run(args: argparse.Namespace) -> None:
     record = GameRecord(iron)
     arena = record.state_at(0, args.threads)
     path, seed = pool.next()
+    # 一局只选一次权重，后续复盘/试玩始终使用同一个 Agent。
     print(f'\nGame start | Model: {path.name} | Player: {iron:g} iron | Master: 0 iron')
     print('Enter skill name + parameter; omitted parameter means 0.')
     agent = Agent(path, args.device, seed, args.width, args.leaf_width,
@@ -258,6 +267,7 @@ def run(args: argparse.Namespace) -> None:
     print(record.ending)
     while True:
         answer = read_text('Replay the game? [y/N] > ')
+        # 终局只询问是否复盘；无论选项如何，都不会自动启动另一局。
         if answer is None or answer in ('', 'n', 'no', 'q'):
             return
         if answer in ('y', 'yes'):
