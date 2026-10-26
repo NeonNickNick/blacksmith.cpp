@@ -8,11 +8,9 @@ let currentState = null;
 const API_BASE = String(window.BLACKSMITH_API_BASE || '').replace(/\/$/, '');
 
 async function api(path, body) {
-  const response = await fetch(`${API_BASE}${path}`, body === undefined ? {
-    headers: { 'ngrok-skip-browser-warning': '1' },
-  } : {
+  const response = await fetch(`${API_BASE}${path}`, body === undefined ? {} : {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify(body),
   });
   const payload = await response.json();
