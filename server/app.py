@@ -269,6 +269,10 @@ def make_handler(service: MatchService):
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            origin = self.headers.get("Origin")
+            if origin and origin == service.args.cors_origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
             self.end_headers()
             self.wfile.write(data)
 
@@ -312,6 +316,22 @@ def make_handler(service: MatchService):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(data)
+
+        def do_OPTIONS(self):
+            origin = self.headers.get("Origin")
+            if origin != service.args.cors_origin:
+                self.send_response(403)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, ngrok-skip-browser-warning")
+            self.send_header("Access-Control-Max-Age", "600")
+            self.send_header("Vary", "Origin")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
         def do_POST(self):
             try:
@@ -369,6 +389,8 @@ def configure(parser: argparse.ArgumentParser) -> None:
     checkpoints.add_argument("--checkpoint-dir", help="Randomly choose a .pt file each game")
     parser.add_argument("--host", default="0.0.0.0", help="Interface to listen on (default: all interfaces)")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--cors-origin", default="https://neonnicknick.github.io",
+                        help="Allowed browser origin for API calls (default: GitHub Pages site)")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--starting-iron", type=float, choices=(0.0, 0.5, 1.0))

@@ -76,6 +76,23 @@ connections on the computer's network interfaces. The server has no login or
 TLS layer; use it on a trusted network and do not forward its port to the
 public internet.
 
+## GitHub Pages with an ngrok API tunnel
+
+The static browser client can be published from `server/web` with the workflow
+in `.github/workflows/pages.yml`, which runs on pushes to `main` or
+`blacksmith-master`. In the repository settings, set **Pages →
+Build and deployment → Source** to **GitHub Actions**. After the workflow runs,
+the page is available at `https://neonnicknick.github.io/blacksmith.cpp/`.
+
+`server/web/config.js` points the browser at the configured ngrok URL. Keep
+the server and ngrok tunnel running while playing. If the tunnel URL changes,
+update that file and publish the change. The server allows browser API requests
+from `https://neonnicknick.github.io` by default; use `--cors-origin` if the
+Pages domain changes. Restart the server after updating CORS settings.
+
+The public tunnel exposes the game API to anyone who can reach its URL. The
+server has no authentication, so stop the tunnel when it is not needed.
+
 ## Controls
 
 - Choose 0, 0.5, or 1 starting iron. Master always starts at 0 iron.

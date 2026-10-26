@@ -54,6 +54,9 @@ Master 的参数范围通常为 0～5，`block` 为 1～4；`makebolts` 支持 0
 服务器启动时打印的 `http://<本机IP>:8765/` 地址，即可通过图形界面与 Master 对战。
 用法及网络说明见 [server/README.md](server/README.md)。
 
+网页也可由 GitHub Pages 静态托管，并通过 ngrok 访问运行中的本机 API；配置和发布说明见
+[server/README.md](server/README.md)。
+
 ## 自对弈训练
 
 ```powershell

@@ -5,10 +5,15 @@ let sessionId = null;
 let selectedIron = 0;
 let currentMode = 'lobby';
 let currentState = null;
+const API_BASE = String(window.BLACKSMITH_API_BASE || '').replace(/\/$/, '');
 
 async function api(path, body) {
-  const response = await fetch(path, body === undefined ? {} : {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  const response = await fetch(`${API_BASE}${path}`, body === undefined ? {
+    headers: { 'ngrok-skip-browser-warning': '1' },
+  } : {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+    body: JSON.stringify(body),
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
