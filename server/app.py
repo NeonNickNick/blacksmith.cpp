@@ -49,9 +49,7 @@ class Match:
 class MatchService:
     def __init__(self, args: argparse.Namespace):
         self.args = args
-        default_checkpoint = ROOT / "models" / "blacksmith-master" / "master-0099.pt"
-        checkpoint = args.checkpoint or (None if args.checkpoint_dir else str(default_checkpoint))
-        self.pool = play.CheckpointPool(checkpoint, args.checkpoint_dir, args.seed)
+        self.pool = play.CheckpointPool(args.checkpoint, args.checkpoint_dir, args.seed)
         self.pool_lock = threading.Lock()
         self.sessions: dict[str, Match] = {}
         self.sessions_lock = threading.Lock()

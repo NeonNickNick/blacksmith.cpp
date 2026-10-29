@@ -12,6 +12,7 @@ from blacksmith import master as engine
 from .agent import Agent
 
 DEFAULT_CHECKPOINT_DIR = Path(__file__).resolve().parents[3] / 'models' / 'blacksmith-master'
+DEFAULT_CHECKPOINT = DEFAULT_CHECKPOINT_DIR / 'master-0099.pt'
 
 def parse_action(text: str) -> int:
     return engine.parse_action(text)
@@ -48,9 +49,9 @@ def print_status(arena, human_seat: int, finished=False) -> None:
 
 
 class CheckpointPool:
-    # 默认扫描目录内现有 .pt；只有一个文件时自然固定，不要求存在五个旧权重。
     def __init__(self, checkpoint=None, directory=None, seed=None):
-        self.paths = [Path(checkpoint)] if checkpoint else sorted(Path(directory or DEFAULT_CHECKPOINT_DIR).glob('*.pt'))
+        self.paths = (sorted(Path(directory).glob('*.pt')) if directory
+                      else [Path(checkpoint) if checkpoint else DEFAULT_CHECKPOINT])
         if not self.paths or any(not path.is_file() for path in self.paths):
             raise FileNotFoundError('No play checkpoints found; set --checkpoint or --checkpoint-dir')
         self.rng = random.Random(seed)
@@ -278,10 +279,10 @@ def run(args: argparse.Namespace) -> None:
 
 def configure(parser: argparse.ArgumentParser) -> None:
     checkpoints = parser.add_mutually_exclusive_group()
-    checkpoints.add_argument("--checkpoint", help="Use one fixed model instead of the random pool")
+    checkpoints.add_argument("--checkpoint", help="Use a fixed model (default: master-0099.pt)")
     checkpoints.add_argument("--checkpoint-dir", help="Randomly choose a .pt file from this directory each game")
     parser.add_argument("--device", default="cpu")
-    parser.add_argument("--seed", type=int, default=None, help="Optional reproducible model and action sampling")
+    parser.add_argument("--seed", type=int, default=None, help="Optional reproducible action and model sampling")
     parser.add_argument('--starting-iron', type=float, choices=(0.0, 0.5, 1.0),
                         help='Player starting iron each game; interactive default is 0. Master always starts at 0.')
     parser.add_argument("--search-depth", "--depth", type=int, default=2,

@@ -7,9 +7,7 @@ replay 与自对弈训练。训练仅使用 Master 自对弈。
 
 当前模型采用 hidden=256、4 个残差块、history width=64、1 层 Transformer、
 4 个注意力头、Sigmoid 价值头。残差分支为 LayerNorm → Linear → SiLU → Linear，
-按 `1/sqrt(depth)` 缩放。当前本地默认权重 `master-0099.pt` 使用 schema 8；
-暂停后下载的 `master-0117.pt` 独立保存在 `out/cloud-training` 的结果目录中，没有替换默认权重。
-旧 schema 3（75 个动作）权重不兼容当前架构。
+按 `1/sqrt(depth)` 缩放。当前本地默认权重 `master-0099.pt` 使用 schema 8。
 
 各个 Python 文件的职责和阅读顺序见 [Python 文件索引](../../README.md#每个-python-文件的作用)。
 
@@ -89,7 +87,7 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 .\play.cmd --starting-iron 0 --search-depth 3 --width 24 --leaf-width 4 --search-nodes 200000
 ```
 
-每次运行只玩一局，默认加载 `models/blacksmith-master/` 中的 `.pt` 权重；当前仅保留新训练的 `master-0099.pt`。
+每次运行只玩一局，默认加载 `models/blacksmith-master/master-0099.pt`。
 `--checkpoint PATH` 固定权重；`--checkpoint-dir PATH` 指定随机池；`--seed` 可复现抽样。
 默认回车或选 `0` 双方 0 iron；`1` 玩家 0.5 iron；`2` 玩家 1 iron，Master 始终为 0。
 

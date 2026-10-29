@@ -135,6 +135,16 @@ class PlayTests(unittest.TestCase):
             fixed = play.CheckpointPool(checkpoint=first[0][0], seed=42)
             self.assertTrue(all(fixed.next()[0] == first[0][0] for _ in range(5)))
 
+    def test_default_checkpoint_is_fixed_even_with_other_weights(self):
+        with tempfile.TemporaryDirectory() as folder:
+            default = Path(folder) / 'master-0099.pt'
+            default.touch()
+            (Path(folder) / 'master-other.pt').touch()
+            with patch.object(play, 'DEFAULT_CHECKPOINT', default):
+                pool = play.CheckpointPool(seed=42)
+                self.assertEqual(pool.paths, [default])
+                self.assertTrue(all(pool.next()[0] == default for _ in range(5)))
+
     def test_skill_input_mapping_covers_native_table_and_rejects_bad_parameters(self):
         for index, name in enumerate(engine.ACTION_NAMES):
             self.assertEqual(play.parse_action(name), index)
