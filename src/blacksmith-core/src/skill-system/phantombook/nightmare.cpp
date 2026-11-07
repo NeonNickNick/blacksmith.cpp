@@ -1,4 +1,5 @@
 #include "skill-system/skill-sets.hpp"
+#include <algorithm>
 #include <domain/models.hpp>
 #include <domain/transformations.hpp>
 #include <skill-system/dsl-macro.hpp>
@@ -39,6 +40,14 @@ REGISTER(channeling, skill::CHANNELING, REQUIRE(RESOURCE(R_SPIRIT, 1.0F)),
                             .defender_ = default_reduction}>(player);
              write_defense<{.type_ = defense_type::MAGICAL_IMMUNITY,
                             .power_ = 1,
-                            .defender_ = magical_immunity}>(player)))
+                            .defender_ = magical_immunity}>(player);
+             auto it = std::ranges::find_if(
+                 player.focus_.defense_.defenses_,
+                 [](const auto &d) {
+                     return d.id_ == defense_id::NIGHTMARE_ARMOR;
+                 });
+             if (it != player.focus_.defense_.defenses_.end()) {
+                 (*it).power_ += 2;
+             }))
 
 END(nightmare)

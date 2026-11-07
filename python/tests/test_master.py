@@ -436,11 +436,11 @@ class MasterTests(unittest.TestCase):
                 "entries": [{"roles": entry.roles, "prefix": entry.prefix} for entry in entries]}), encoding="utf-8")
             starts = Starts("mixed", str(bank), 42)
             groups = [starts.next()[0] for _ in range(10 * len(COURSE_PAIRS))]
-            self.assertEqual(groups.count(-1), 4 * len(COURSE_PAIRS))
+            self.assertEqual(groups.count(-1), 6 * len(COURSE_PAIRS))
             counts = Counter(group for group in groups if group != -1)
-            self.assertEqual(counts, dict.fromkeys(range(len(COURSE_PAIRS)), 6))
+            self.assertEqual(counts, dict.fromkeys(range(len(COURSE_PAIRS)), 4))
             for start in range(0, len(groups), 10):
-                self.assertEqual(groups[start:start + 10].count(-1), 4)
+                self.assertEqual(groups[start:start + 10].count(-1), 6)
         observations, masks = arena.observe()
         policies = masks / masks.sum(-1, keepdims=True)
         replay = Replay(3)
@@ -458,9 +458,9 @@ class MasterTests(unittest.TestCase):
         for size in (MIN_MIXED_BATCH, 2 * MIN_MIXED_BATCH):
             x, _, _, _, weights = pool.sample(np.random.default_rng(1), size)
             self.assertAlmostEqual(float(weights.sum()), 1, places=6)
-            self.assertAlmostEqual(float(weights[x[:, 0] == -1].sum()), .4, places=6)
+            self.assertAlmostEqual(float(weights[x[:, 0] == -1].sum()), .6, places=6)
             for group in range(len(COURSE_PAIRS)):
-                self.assertAlmostEqual(float(weights[x[:, 0] == group].sum()), .6 / len(COURSE_PAIRS), places=6)
+                self.assertAlmostEqual(float(weights[x[:, 0] == group].sum()), .4 / len(COURSE_PAIRS), places=6)
 
     def test_curriculum_rechecks_roles_after_dreamwake(self) -> None:
         # 回溯可能撤销已获得的职业，课程生成器必须在真正收录前再次检查职业。

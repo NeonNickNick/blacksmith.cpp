@@ -72,8 +72,8 @@ python/.venv/Scripts/python.exe -m master train --mode free --role phantombook -
 replay 也按 50/50 分层抽样；专项均衡覆盖幻影书与其他启用职业的双方席位组合。
 可用 `python -m master curriculum --focus-role phantombook --output PATH` 生成专项开局。
 可选 `--mode mixed --bank PATH` 为 Master 自对弈加入课程起点；课程自动覆盖所有启用职业，
-目前为七职业的 49 个有序组合，抽样权重为自由 40%、课程 60%。课程前缀不是训练目标。
-当前混合训练最小 batch 为 82，最小 replay 容量为 5227；旧课程库需要重新生成。
+目前为七职业的 49 个有序组合，抽样权重为自由 60%、课程 40%。课程前缀不是训练目标。
+当前混合训练最小 batch 为 123，最小 replay 容量为 7840；旧课程库需要重新生成。
 
 ```powershell
 python/.venv/Scripts/python.exe -m master curriculum --output out/curriculum.json

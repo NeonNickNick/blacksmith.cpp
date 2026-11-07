@@ -5,7 +5,7 @@ from math import ceil
 
 from blacksmith import master as engine
 
-FREE_FRACTION = .4
+FREE_FRACTION = .6
 COURSE_ROLES = tuple(range(1, len(engine.ROLES)))
 COURSE_PAIRS = tuple(product(COURSE_ROLES, repeat=2))
 # 每层至少能存放 64 个样本，且一个混合 batch 能覆盖全部职业层。
