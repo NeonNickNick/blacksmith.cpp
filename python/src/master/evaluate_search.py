@@ -46,6 +46,7 @@ def main() -> None:
             opponent_depths = []
             for turn in range(engine.ROUND_LIMIT):
                 observation, masks = arena.observe()
+                masks = model.mask(observation, masks)
                 start = time.perf_counter()
                 if args.opponent_depth:
                     first_actions, _, first_info = search(model, arena, rng_policy, device, args.width,

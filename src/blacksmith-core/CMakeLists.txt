@@ -17,9 +17,6 @@ add_library(
   src/skill-system/lancer.cpp
   src/skill-system/bloodsigil.cpp
   # Temporarily disabled professions; keep their implementations for restoration.
-  # src/skill-system/monk.cpp
-  # src/skill-system/prophet.cpp
-  src/skill-system/holybook.cpp
   src/skill-system/phantombook/phantombook.cpp
   src/skill-system/phantombook/nightmare.cpp
   src/skill-system/crossbow.cpp

@@ -13,12 +13,9 @@ inline const std::set<std::string> skills = {
     "STRIKE", "DOUBLE_STRIKE", "TRIPLE_STRIKE", "APSHELL", "CANNON_BARRIER",
     "SPACE_ATTACK", "TIME2SPACE", "SPACE2TIME", "SPACE_BARRIER", "SKY_STRIKE",
     "TYRANT_DESTURCTION", "DRAGON_TOOTH", "TRIPLE_STAB", "CHARGE", "RISING_DRAGON",
-    "BLOOD_BLADE", "BLOOD_LUST", "BLOOD_RECOVERY", "BLOOD_RAGE", "MONK", "PROPHET",
-    "HOLYBOOK", "PHANTOMBOOK", "CAULDRON", "CROSSBOW", "JADE", "GHOST_STEP",
-    "GOLDEN_BELL_COVER", "MAZE_FIST", "MIST", "DISILLUSIONMENT", "CRYSTAL",
-    "CRYSTAL_BALL", "FORETOLD", "GREATEST_CAUTION", "REVELATION", "ASSERTION",
-    "CRYSTAL_WALL", "REFRACTION", "ULTIMATUM", "CROSS", "PRAYER", "ARK",
-    "PROFANATION", "REBIRTH", "ABSOLUTION", "FANTASIA", "ASSOCIATION",
+    "BLOOD_BLADE", "BLOOD_LUST", "BLOOD_RECOVERY", "BLOOD_RAGE",
+    "PHANTOMBOOK", "CAULDRON", "CROSSBOW",
+    "FANTASIA", "ASSOCIATION",
     "HALLUCINATION", "DREAM_WAKE", "ILLUSION", "NIGHTMARE", "DREAM_DIVE",
     "MATERIALIZATION", "HAUNT", "CHANNELING", "FIRE", "WATER", "WOOD", "EARTH",
     "EXPLOSION", "ICE_BLADE", "REGENERATION", "STONE_SHELL", "BURN_LIFE",
@@ -27,22 +24,20 @@ inline const std::set<std::string> skills = {
 };
 inline const std::set<std::string> marks = {
     "CANNON", "DRIVER", "SKY_STRIKE", "TYRANT_DESTRUCTION", "DRAGON_TOOTH",
-    "TRIPLE_STAB", "CHARGE", "COUNTER_ATTACK", "BLOODSIGIL", "PROFANATION",
-    "CROSSBOW_AIM", "GREATEST_CAUTION", "REVELATION", "CRYSTAL_WALL_HIT",
-    "DELAYED_CRYSTAL_WALL_HIT"
+    "TRIPLE_STAB", "CHARGE", "COUNTER_ATTACK", "BLOODSIGIL",
+    "CROSSBOW_AIM",
 };
 inline const std::set<std::string> skill_sets = {
-    "common", "warlock", "cannon", "driver", "lancer", "bloodsigil", "monk",
-    "prophet", "holybook", "phantombook", "crossbow", "cauldron", "alchemy",
+    "common", "warlock", "cannon", "driver", "lancer", "bloodsigil",
+    "phantombook", "crossbow", "cauldron", "alchemy",
     "nightmare", "elementalarmor"
 };
 inline const std::map<std::string, std::string> resources = {
     {"HP", "HP"}, {"MHP", "MHP"}, {"Iron", "IRON"}, {"CommonIron", "IRON"},
     {"GoldIron", "GOLD_IRON"}, {"Space", "SPACE"}, {"Time", "TIME"},
-    {"Magic", "MAGIC"}, {"Cross", "CROSS"}, {"Dream", "DREAM"},
+    {"Magic", "MAGIC"}, {"Dream", "DREAM"},
     {"Spirit", "SPIRIT"}, {"Fire", "FIRE"}, {"Water", "WATER"},
-    {"Wood", "WOOD"}, {"Earth", "EARTH"}, {"Bolt", "BOLT"}, {"Jade", "JADE"},
-    {"Crystal", "CRYSTAL"}, {"CrystalBall", "CRYSTAL_BALL"}
+    {"Wood", "WOOD"}, {"Earth", "EARTH"}, {"Bolt", "BOLT"}
 };
 inline const std::map<std::string, std::string> attacks = {
     {"Physical", "PHYSICAL"}, {"Magical", "MAGICAL"}, {"Real", "REAL"}

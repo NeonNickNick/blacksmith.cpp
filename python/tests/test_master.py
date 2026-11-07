@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from blacksmith import master as engine
 
-from master.models import ModelConfig, Policy, checkpoint, load, masked_log_probs
+from master.models import ModelConfig, Policy, RoutedPolicy, checkpoint, load, masked_log_probs
 from master.train.curriculum import action_named, build
 from master.train.replay import Replay, Starts, StratifiedReplay
 from master.train.search import search, solve_matrix
@@ -29,22 +29,19 @@ class MasterTests(unittest.TestCase):
         torch.manual_seed(42)
 
     def model(self) -> Policy:
-        # 缩小网络以降低测试成本，同时保留残差、历史和 association 的全部结构。
-        return Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
-                                         history_heads=2, history_layers=1))
+        # 缩小网络以降低测试成本，同时保留残差和历史结构。
+        return RoutedPolicy(Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
+                                         history_heads=2, history_layers=1)))
 
     def test_schema_and_action_table(self) -> None:
         self.assertEqual(engine.ROLES, ["none", "warlock", "cannon", "driver", "lancer", "bloodsigil",
-                                      "holybook", "phantombook", "crossbow"])
-        self.assertEqual(engine.SCHEMA_VERSION, 8)
-        self.assertEqual(engine.COMMON_ENCODING_LENGTH, 266)
-        self.assertEqual(engine.PROFESSION_ENCODING_LENGTH, 382)
-        self.assertEqual(engine.OBSERVATION_LENGTH, 1458)
-        self.assertEqual(engine.SKILL_NUM, 266)
+                                      "phantombook", "crossbow"])
+        self.assertEqual(engine.SCHEMA_VERSION, 11)
+        self.assertEqual(engine.COMMON_ENCODING_LENGTH, 234)
+        self.assertEqual(engine.PROFESSION_ENCODING_LENGTH, 327)
+        self.assertEqual(engine.OBSERVATION_LENGTH, 1284)
+        self.assertEqual(engine.SKILL_NUM, 252)
         self.assertEqual(engine.SKILL_NUM, 2 * engine.BASE_ACTION_COUNT)
-        for name in engine.ACTION_NAMES:
-            self.assertNotIn('prophet', name)
-            self.assertNotIn('monk', name)
         self.assertEqual(engine.HISTORY_OFFSET, 2 * (engine.COMMON_ENCODING_LENGTH + engine.PROFESSION_ENCODING_LENGTH) + 2)
         self.assertEqual(engine.OBSERVATION_LENGTH, engine.HISTORY_OFFSET + engine.HISTORY_LENGTH * engine.HISTORY_TOKEN_LENGTH)
         self.assertEqual(len(set(engine.ACTIONS)), engine.SKILL_NUM)
@@ -60,8 +57,8 @@ class MasterTests(unittest.TestCase):
         self.assertEqual(engine.Arena(1, 1).metadata().dtype, np.int32)
         self.assertFalse(observations[..., engine.HISTORY_OFFSET:].any())
         for layers in (1, 2):
-            model = Policy(ModelConfig(hidden=16, depth=2, history_width=16,
-                                       history_heads=2, history_layers=layers))
+            model = RoutedPolicy(Policy(ModelConfig(hidden=16, depth=2, history_width=16,
+                                       history_heads=2, history_layers=layers)))
             logits, values = model(torch.from_numpy(observations))
             self.assertEqual(tuple(logits.shape), masks.shape)
             self.assertEqual(tuple(values.shape), (2, 2))
@@ -120,8 +117,7 @@ class MasterTests(unittest.TestCase):
         self.assertEqual(arena.status()["players"][0]["bolt"], 15)
         self.assertEqual(arena.status()["players"][0]["iron"], 0)
 
-    def test_association_mask_branch_history_and_network(self) -> None:
-        # 同时检查真实掩码、假想分支和历史中的完整技能链，防止仅网络维度“看起来正确”。
+    def test_profession_routing_and_association(self) -> None:
         iron = action_named("iron")
         arena = engine.Arena(1, 1)
         arena.reset(0, [[iron, iron]] * 5 + [
@@ -130,68 +126,52 @@ class MasterTests(unittest.TestCase):
             [action_named("fantasia"), action_named("magic")],
         ])
         borrowed = engine.parse_action("association 0 magicattack 2")
-        impossible = engine.parse_action("association 0 magicattack 3")
-        owned = engine.parse_action("association 0 iron 0")
-        before, masks = arena.observe()
-        self.assertEqual(masks[0, 0, borrowed], 1)
-        self.assertEqual(masks[0, 0, impossible], 0)
-        self.assertEqual(masks[0, 0, owned], 0)
-        choices = np.array([[[borrowed], [iron]]], np.int32)
-        branch, _, _ = engine.SearchTree(arena).expand(choices)
-        np.testing.assert_array_equal(before, arena.observe()[0])
-        arena.step(choices[..., 0], reset_finished=False)
-        actual, _ = arena.observe()
-        np.testing.assert_array_equal(actual, branch)
-        status = arena.status()["players"]
-        self.assertEqual(status[0]["dream"], 0)
-        self.assertEqual(status[0]["magic"], 0)
-        self.assertEqual(status[1]["magic"], 2)
-        self.assertEqual(status[1]["hp"], 6)
-        history = actual[0, 0, engine.HISTORY_OFFSET:].reshape(engine.HISTORY_LENGTH, -1)
-        self.assertEqual(int(history[-1, 1]), borrowed)
-        model = self.model()
-        logits, values = model(torch.from_numpy(actual))
-        (logits[0, 0, borrowed] + values.sum()).backward()
-        self.assertGreater(float(model.history.actions.weight.grad[borrowed].abs().sum()), 0)
-        self.assertGreater(float(model.history.base_actions.weight.grad[
-            borrowed - engine.BASE_ACTION_COUNT].abs().sum()), 0)
-        arena.step(np.array([[iron, iron]], np.int32), reset_finished=False)
-        self.assertEqual(arena.status()["players"][1]["hp"], 2)
-
-    def test_shared_association_head_search_and_policy_gradient(self) -> None:
-        arena = engine.Arena(1, 1)
-        iron = action_named('iron')
-        arena.reset(0, [[iron, iron]] * 5 + [
-            [action_named('phantombook'), action_named('warlock')],
-            [action_named('fantasia'), action_named('magic')],
-            [action_named('fantasia'), action_named('magic')]])
-        borrowed = engine.parse_action('association 0 magicattack 2')
-        base = borrowed - engine.BASE_ACTION_COUNT
-        model = self.model().eval()
         states, masks = arena.observe()
-        x = torch.from_numpy(states)
-        logits, _ = model(x)
-        torch.testing.assert_close(logits[..., :engine.BASE_ACTION_COUNT],
-                                   logits[..., engine.BASE_ACTION_COUNT:])
-        model.zero_grad(set_to_none=True)
-        loss = -masked_log_probs(logits, torch.from_numpy(masks))[0, 0, borrowed]
-        loss.backward()
-        for layer in (model.actor, model.association_actor):
-            self.assertGreater(float(layer.weight.grad[base].abs().sum()), 0)
-        self.assertGreater(float(model.association_gate.weight.grad.abs().sum()), 0)
-        probabilities = masked_log_probs(logits, torch.from_numpy(masks)).exp()
-        self.assertEqual(float(probabilities[0, 0, base].detach()), 0)  # Unowned normal skill.
-        self.assertGreater(float(probabilities[0, 0, borrowed].detach()), 0)
-        with torch.no_grad():
-            model.actor.weight.zero_()
-            model.actor.bias.zero_()
-            model.actor.bias[iron] = 10
-            model.association_actor.bias[base] = 50
-        actions, policies = search(model, arena, np.random.default_rng(42),
-                                    torch.device('cpu'), 1, 1, 8)
-        self.assertEqual(int(actions[0, 0]), borrowed)
-        self.assertEqual(float(policies[0, 0, borrowed]), 1)
-        np.testing.assert_array_equal(arena.observe()[0], states)
+        self.assertEqual(masks[0, 0, borrowed], 1)
+        model = self.model()
+        self.assertEqual(model.mask(states, masks)[0, 0, borrowed], 0)
+        base_states = torch.from_numpy(states.copy())
+        association = engine.AUTHORIZED_OFFSET + engine.ASSOCIATION_SKILL
+        base_states[..., association] = 0
+        base_states[..., engine.COMMON_ENCODING_LENGTH + association] = 0
+        base_logits, base_value = model.base(base_states, value_logits=True)
+        model.train_stage("phantombook")
+        self.assertEqual(model.mask(states, masks)[0, 0, borrowed], 1)
+        logits, values = model(torch.from_numpy(states), value_logits=True)
+        torch.testing.assert_close(logits[..., :engine.BASE_ACTION_COUNT], base_logits)
+        torch.testing.assert_close(values, base_value)
+        torch.testing.assert_close(logits[0, 0, borrowed], base_logits[0, 0, borrowed - engine.BASE_ACTION_COUNT])
+        (-masked_log_probs(logits, torch.from_numpy(model.mask(states, masks)))[0, 0, borrowed] + values[0, 0]).backward()
+        self.assertTrue(all(p.grad is None for p in model.base.parameters()))
+        self.assertTrue(any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.experts["phantombook"].parameters()))
+        self.assertTrue(all(p.grad is None for p in model.experts["warlock"].parameters()))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "routed.pt"
+            torch.save(checkpoint(model), path)
+            restored = load(path)
+            self.assertEqual(restored.enabled_roles, ("phantombook",))
+            for expected, actual in zip(model(torch.from_numpy(states)), restored(torch.from_numpy(states))):
+                torch.testing.assert_close(expected, actual)
+
+    def test_each_profession_routes_only_its_own_correction(self) -> None:
+        model = self.model()
+        states, masks = engine.Arena(1, 1).observe()
+        state = torch.from_numpy(states[0, 0]).repeat(len(engine.ROLES), 1)
+        offset = engine.PROFESSION_ONE_HOT_OFFSET
+        state[:, offset:offset + len(engine.ROLES)] = torch.eye(len(engine.ROLES))
+        reference, reference_value = model(state, value_logits=True)
+        for i, role in enumerate(engine.ROLES[1:], 1):
+            model.train_stage(role)
+            with torch.no_grad():
+                model.experts[role].output.bias[0] = float(i)
+                model.experts[role].output.bias[engine.BASE_ACTION_COUNT] = float(i) / 10
+        logits, values = model(state, value_logits=True)
+        torch.testing.assert_close(logits[:, 0] - reference[:, 0], torch.arange(len(engine.ROLES), dtype=values.dtype))
+        torch.testing.assert_close(values - reference_value, torch.arange(len(engine.ROLES), dtype=values.dtype) / 10)
+        self.assertTrue((logits[0, engine.BASE_ACTION_COUNT:] < -1e8).all())
+        self.assertTrue(all(not p.requires_grad for p in model.base.parameters()))
+        self.assertTrue(all(not p.requires_grad for p in model.experts['warlock'].parameters()))
+        self.assertTrue(all(p.requires_grad for p in model.experts['crossbow'].parameters()))
 
     def test_history_required_and_checkpoint_architecture_enforced(self) -> None:
         for layers in (0, -1):
@@ -209,34 +189,6 @@ class MasterTests(unittest.TestCase):
                 torch.save(payload, path)
                 with self.subTest(architecture=architecture), self.assertRaisesRegex(ValueError, 'architecture'):
                     load(path)
-
-    @unittest.skip("Prophet is temporarily disabled")
-    def test_crystal_wall_hit_marks_expire_and_refund_once_per_round(self) -> None:
-        iron = action_named("iron")
-        magicattack = next(index for index, name in enumerate(engine.ACTION_NAMES)
-                           if name.casefold() == "magicattack 1")
-        arena = engine.Arena(1, 1)
-        arena.reset(0, [[iron, iron]] * 6 + [
-            [action_named("prophet"), action_named("warlock")],
-            [action_named("crystal"), action_named("magic")],
-            [action_named("crystal"), iron],
-            [action_named("crystalball"), iron],
-        ])
-        profession_offset = 2 * engine.COMMON_ENCODING_LENGTH
-        crystal_offset = profession_offset + engine.PROFESSION_ENCODING_LENGTH - 24 + 9
-        mark_slice = slice(profession_offset + engine.MARK_OFFSET,
-                           profession_offset + engine.PENDING_RESOURCE_OFFSET)
-        # The second wall round receives a delayed magic hit and a new physical
-        # hit. Each round refunds one Crystal, and its hit mark then expires.
-        for move, attack, crystals in (
-            (action_named("crystalwall"), magicattack, 1),
-            (iron, action_named("stick"), 2),
-            (iron, iron, 2),
-        ):
-            arena.step(np.array([[move, attack]], np.int32))
-            observations, _ = arena.observe()
-            self.assertAlmostEqual(float(observations[0, 0, crystal_offset]), crystals / 10)
-            self.assertFalse(observations[0, 0, mark_slice].any())
 
     def test_history_perspectives_branch_copy_truncation_and_reset(self) -> None:
         arena = engine.Arena(1, 1)
@@ -289,7 +241,7 @@ class MasterTests(unittest.TestCase):
         policy_loss = -masked_log_probs(logits, torch.from_numpy(masks.reshape(-1, engine.SKILL_NUM)))[:, 0].mean()
         loss = policy_loss + torch.nn.functional.binary_cross_entropy(values, torch.tensor([1., 0., 1., 0.]))
         loss.backward()
-        self.assertGreater(float(model.history.actions.weight.grad.abs().sum()), 0)
+        self.assertGreater(float(model.base.history.actions.weight.grad.abs().sum()), 0)
         self.assertTrue(all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None))
         optimizer.step()
         model.eval()
@@ -323,17 +275,17 @@ class MasterTests(unittest.TestCase):
         arena.step(np.zeros((2, 2), np.int32))
         obs, masks = arena.observe()
         x = torch.from_numpy(obs)
-        model = Policy(config=ModelConfig(hidden=16, depth=4, history_width=16,
-                       history_layers=1, history_heads=2))
+        model = RoutedPolicy(Policy(config=ModelConfig(hidden=16, depth=4, history_width=16,
+                       history_layers=1, history_heads=2)))
         logits, probability = model(x)
         torch.testing.assert_close(probability, torch.full((2, 2), .5))
         _, raw = model(x, value_logits=True)
         torch.testing.assert_close(raw.sigmoid(), probability)
         loss = torch.nn.functional.binary_cross_entropy_with_logits(raw,
-                          torch.tensor([[1., 0.], [.5, .5]])) + logits.square().mean()
+                          torch.tensor([[1., 0.], [.5, .5]])) + logits[..., :engine.BASE_ACTION_COUNT].square().mean()
         loss.backward()
         self.assertTrue(all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None))
-        self.assertGreater(float(model.body[2].branch[1].weight.grad.abs().sum()), 0)
+        self.assertGreater(float(model.base.body[2].branch[1].weight.grad.abs().sum()), 0)
         torch.testing.assert_close(model.signed_values(torch.tensor([0., .5, 1.])),
                                    torch.tensor([-1., 0., 1.]))
         with tempfile.TemporaryDirectory() as folder:
@@ -367,7 +319,7 @@ class MasterTests(unittest.TestCase):
             self.assertEqual(completion['gradient_steps'], 1)
             payload = torch.load(Path(args.output) / completion['checkpoint'], weights_only=True)
             self.assertIsInstance(payload['optimizer']['param_groups'][0]['lr'], float)
-            optimizer = torch.optim.AdamW(load(Path(args.output) / completion['checkpoint']).parameters())
+            optimizer = torch.optim.AdamW(load(Path(args.output) / completion['checkpoint']).base.parameters())
             optimizer.load_state_dict(payload['optimizer'])
             self.assertTrue(optimizer.state)
             # A free-only continuation retains Adam moments and cumulative steps,
@@ -391,6 +343,26 @@ class MasterTests(unittest.TestCase):
                 torch.testing.assert_close(initial['optimizer']['state'][key]['exp_avg'], state['exp_avg'])
                 torch.testing.assert_close(final['optimizer']['state'][key]['step'], state['step'] + 1)
 
+            # Start a separate profession stage from the trained base and verify isolation.
+            args.resume = None
+            args.initial = str(previous_checkpoint)
+            args.role = "warlock"
+            args.output = str(Path(folder) / 'warlock')
+            args.max_gradient_steps = 1
+            args.lr_time_offset = 0
+            args.record_games = False
+            train.run(args)
+            result = json.loads((Path(args.output) / 'completion.json').read_text())
+            self.assertEqual(result['gradient_steps'], 1)
+            specialist = torch.load(Path(args.output) / result['checkpoint'], weights_only=True)
+            self.assertIn('warlock', specialist['enabled_roles'])
+            for name, before in payload['model'].items():
+                after = specialist['model'][name]
+                if name.startswith('base.') or (name.startswith('experts.') and not name.startswith('experts.warlock.')):
+                    torch.testing.assert_close(before, after, rtol=0, atol=0)
+            self.assertFalse(torch.equal(payload['model']['experts.warlock.output.weight'],
+                                         specialist['model']['experts.warlock.output.weight']))
+
     @unittest.skipUnless(torch.cuda.is_available(), "CUDA is not available on this host")
     def test_cuda_search_gradient_and_cpu_checkpoint(self) -> None:
         arena = engine.Arena(2, 1)
@@ -404,7 +376,7 @@ class MasterTests(unittest.TestCase):
         x = torch.as_tensor(observations, device="cuda")
         optimizer = torch.optim.AdamW(model.parameters(), lr=.003)
         logits, values = model(x)
-        loss = logits.square().mean() + (values - .5).square().mean()
+        loss = logits[..., :engine.BASE_ACTION_COUNT].square().mean() + (values - .5).square().mean()
         loss.backward()
         self.assertTrue(all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None))
         optimizer.step()

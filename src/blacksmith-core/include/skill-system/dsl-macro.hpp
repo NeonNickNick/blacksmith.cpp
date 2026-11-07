@@ -184,7 +184,6 @@
 #define R_SPACE resource_type::SPACE
 #define R_TIME resource_type::TIME
 #define R_MAGIC resource_type::MAGIC
-#define R_CROSS resource_type::CROSS
 #define R_DREAM resource_type::DREAM
 #define R_SPIRIT resource_type::SPIRIT
 #define R_FIRE resource_type::FIRE
@@ -192,9 +191,6 @@
 #define R_WOOD resource_type::WOOD
 #define R_EARTH resource_type::EARTH
 #define R_BOLT resource_type::BOLT
-#define R_JADE resource_type::JADE
-#define R_CRYSTAL resource_type::CRYSTAL
-#define R_CRYSTAL_BALL resource_type::CRYSTAL_BALL
 
 #define PHYSICAL attack_type::PHYSICAL
 #define MAGICAL attack_type::MAGICAL

@@ -25,7 +25,7 @@ from master import play  # noqa: E402
 from master.agent import Agent  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
-RESOURCE_KEYS = ("cross", "dream", "spirit", "fire", "water", "wood", "earth", "bolt")
+RESOURCE_KEYS = ("dream", "spirit", "fire", "water", "wood", "earth", "bolt")
 
 
 @dataclass

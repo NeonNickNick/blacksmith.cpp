@@ -9,7 +9,7 @@
 #include <span>
 
 namespace blacksmith::python_bindings::master {
-inline constexpr int SCHEMA_VERSION = 8;
+inline constexpr int SCHEMA_VERSION = 11;
 inline constexpr int DELAY_BINS = 3;
 inline constexpr int CLOCK_LENGTH = 3;
 inline constexpr int ATTACK_UNIT_LENGTH = 4;
@@ -32,7 +32,7 @@ inline constexpr std::array RESOURCE_TYPES{
     resource_type::IRON,    resource_type::GOLD_IRON,
     resource_type::SPACE,   resource_type::TIME,
     resource_type::MAGIC,   resource_type::HP,
-    resource_type::MHP,     resource_type::CROSS,
+    resource_type::MHP,
     resource_type::DREAM,   resource_type::SPIRIT,
     resource_type::FIRE,    resource_type::WATER,
     resource_type::WOOD,    resource_type::EARTH,

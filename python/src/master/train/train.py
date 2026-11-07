@@ -17,7 +17,7 @@ import torch
 from torch.nn import functional as F
 from blacksmith import master as engine
 
-from master.models import ModelConfig, Policy, checkpoint, load, masked_log_probs
+from master.models import ModelConfig, Policy, RoutedPolicy, checkpoint, load, masked_log_probs
 from master.models.data import History
 from master.runtime import digest, settings, write_json
 from .replay import Starts, StratifiedReplay
@@ -49,14 +49,19 @@ def run(args: argparse.Namespace) -> None:
     source = args.resume or args.initial
     config = ModelConfig(hidden=args.hidden, depth=args.depth, history_width=args.history_width,
                          history_layers=args.history_layers, history_heads=args.history_heads)
-    model = (load(source) if source else Policy(config=config)).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    if args.role and not source:
+        raise ValueError("Profession training requires --initial or --resume with a trained base checkpoint")
+    model = (load(source) if source else RoutedPolicy(Policy(config=config))).to(device)
+    if not args.role and model.enabled_roles:
+        raise ValueError("Base training requires a checkpoint without profession models")
+    model.train_stage(args.role)
+    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=args.lr, weight_decay=1e-4)
     start_update = games = gradients = 0
     if args.resume:
         # 恢复学习状态和累计计数；对局与 replay 在下方新建，不声称恢复未完成轨迹。
         saved: dict[str, Any] = torch.load(args.resume, map_location="cpu", weights_only=True)
-        if saved.get("stage") != "selfplay":
-            raise ValueError("--resume requires a self-play checkpoint; use --initial for a model-only checkpoint")
+        if saved.get("stage") != "selfplay" or saved.get("role") != args.role:
+            raise ValueError("--resume requires a self-play checkpoint for the same training role")
         optimizer.load_state_dict(saved["optimizer"])
         # Keep momentum but honor the requested learning rate on continuation.
         for group in optimizer.param_groups:
@@ -86,7 +91,7 @@ def run(args: argparse.Namespace) -> None:
     observed_roles: Counter[str] = Counter()
     terminal_roles: Counter[str] = Counter()
     start = time.monotonic()
-    torch.save(checkpoint(model, stage="selfplay", update=start_update, games=games,
+    torch.save(checkpoint(model, stage="selfplay", role=args.role, update=start_update, games=games,
                          gradient_steps=gradients, optimizer=optimizer.state_dict(),
                          config=settings(args)), output / f"master-{start_update:04d}.pt")
     interrupted = []
@@ -105,7 +110,6 @@ def run(args: argparse.Namespace) -> None:
             return "gradient_budget"
         return None
     collected = 0
-    association_legal_positions = association_actions = 0
     def trace_path(name):
         return output / name if args.record_games else Path(os.devnull)
 
@@ -135,8 +139,7 @@ def run(args: argparse.Namespace) -> None:
                 if stop_reason():
                     break
                 observations, masks = arena.observe()
-                # 统计 association 的真实合法机会与行为选择次数，不把它们视作正确率。
-                association_legal_positions += int((masks[..., engine.BASE_ACTION_COUNT:] > 0).any(-1).sum())
+                masks = model.mask(observations, masks)
                 roles_before = arena.metadata()[:, 1:]
                 with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
                                     enabled=args.precision == "bf16"):
@@ -144,7 +147,6 @@ def run(args: argparse.Namespace) -> None:
                                                args.leaf_width, args.regret_iterations, .15,
                                                (observations, masks))
                 collected += 2 * args.envs
-                association_actions += int((choices >= engine.BASE_ACTION_COUNT).sum())
                 for env in range(args.envs):
                     histories[env].append((observations[env].copy(), masks[env].copy(), policies[env].copy()))
                     observed_roles.update(str(int(role)) for role in roles_before[env])
@@ -187,6 +189,14 @@ def run(args: argparse.Namespace) -> None:
                         group["lr"] = lr
                     batch = replay.sample(rng, args.batch_size)
                     x, masks_t, policy_t, value_t, weights = (torch.as_tensor(array, device=device) for array in batch)
+                    if args.role:
+                        roles = x[:, engine.PROFESSION_ONE_HOT_OFFSET:
+                                  engine.PROFESSION_ONE_HOT_OFFSET + len(engine.ROLES)].argmax(-1)
+                        selected = roles == engine.ROLES.index(args.role)
+                        if not selected.any():
+                            continue
+                        x, masks_t, policy_t, value_t, weights = (v[selected] for v in (x, masks_t, policy_t, value_t, weights))
+                        weights = weights / weights.sum()
                     with torch.autocast(device_type=device.type, dtype=torch.bfloat16,
                                         enabled=args.precision == "bf16"):
                         logits, values = model(x, value_logits=True)
@@ -209,8 +219,6 @@ def run(args: argparse.Namespace) -> None:
                       "search_seconds": search_seconds,
                       "learner_seconds": time.monotonic() - learner_start,
                       "collected_player_positions": collected,
-                      "association_legal_player_positions": association_legal_positions,
-                      "association_actions": association_actions,
                       "replay_draws": (gradients - (saved["gradient_steps"] if args.resume else 0)) * args.batch_size,
                       "learning_rate": optimizer.param_groups[0]["lr"],
                       "loss": np.mean(losses, axis=0).tolist() if losses else [],
@@ -225,7 +233,7 @@ def run(args: argparse.Namespace) -> None:
                 # 使用临时 checkpoint 原子替换；外部下载/恢复只读取写完的 .pt。
                 destination = output / f"master-{update:04d}.pt"
                 temporary = destination.with_suffix(".tmp")
-                torch.save(checkpoint(model, stage="selfplay", update=update, games=games,
+                torch.save(checkpoint(model, stage="selfplay", role=args.role, update=update, games=games,
                            gradient_steps=gradients, optimizer=optimizer.state_dict(),
                            config=settings(args)), temporary)
                 temporary.replace(destination)
@@ -240,6 +248,7 @@ def run(args: argparse.Namespace) -> None:
 
 
 def configure(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--role", choices=engine.ROLES[1:], help="Train only this profession model on a frozen base")
     parser.add_argument("--mode", choices=("free", "mixed", "phantombook"), default="mixed")
     parser.add_argument("--bank")
     parser.add_argument("--record-games", action="store_true", help="Save optional per-move and episode trace logs")

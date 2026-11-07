@@ -167,8 +167,6 @@ resource_component::resource_component()
           resource_template("Time", resource_type::TIME, resource_type::TIME),
           resource_template("Magic", resource_type::MAGIC,
                             resource_type::MAGIC),
-          resource_template("Cross", resource_type::CROSS,
-                            resource_type::CROSS),
           resource_template("Dream", resource_type::DREAM,
                             resource_type::DREAM),
           resource_template("Spirit", resource_type::SPIRIT,
@@ -179,12 +177,7 @@ resource_component::resource_component()
           resource_template("Wood", resource_type::WOOD, resource_type::WOOD),
           resource_template("Earth", resource_type::EARTH,
                             resource_type::EARTH),
-          resource_template("Bolt", resource_type::BOLT, resource_type::BOLT),
-          resource_template("Jade", resource_type::JADE, resource_type::JADE),
-          resource_template("Crystal", resource_type::CRYSTAL,
-                            resource_type::CRYSTAL),
-          resource_template("CrystalBall", resource_type::CRYSTAL_BALL,
-                            resource_type::CRYSTAL_BALL)} {}
+          resource_template("Bolt", resource_type::BOLT, resource_type::BOLT)} {}
 
 std::size_t resource_component::template_index(resource_type type) {
     switch (type) {
@@ -198,8 +191,8 @@ std::size_t resource_component::template_index(resource_type type) {
     case resource_type::MAGIC:
         return 3;
     default:
-        if (type >= resource_type::CROSS &&
-            type <= resource_type::CRYSTAL_BALL) {
+        if (type >= resource_type::DREAM &&
+            type <= resource_type::BOLT) {
             return static_cast<std::size_t>(type) - 1;
         }
         assert(false);

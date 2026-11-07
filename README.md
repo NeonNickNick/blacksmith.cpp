@@ -17,31 +17,33 @@ C++20 规则引擎、原生 Python 绑定和 Master 神经网络自对弈训练�
 
 ```mermaid
 flowchart LR
-    observation["当前视角状态<br/>1458 维"]
+    observation["当前视角状态<br/>1284 维"]
     public["双方公共状态<br/>共享编码器"]
     profession["双方职业状态<br/>共享编码器"]
     global["回合状态"]
     history["最近 8 回合历史<br/>动作嵌入 + 数值投影 + 位置编码"]
     transformer["Transformer 编码器<br/>summary token"]
     trunk["拼接 → 线性投影<br/>4 个残差块 → LayerNorm"]
-    base["普通动作评分 b<br/>133 维"]
-    residual["联想动作残差 r<br/>133 维"]
-    gate["联想门控评分 g<br/>1 维"]
-    logits["拼接 b 和 b+r+g<br/>266 维策略 logits"]
+    base["普通动作评分 b<br/>126 维"]
+    expert["按职业路由专用模型<br/>零初始化修正"]
+    logits["策略 logits<br/>幻影书含联想动作"]
     mask["原生合法动作掩码"]
     policy["掩码 softmax<br/>合法动作策略"]
-    value["价值头 → Sigmoid<br/>当前视角预期得分"]
+    basevalue["底座价值 logits"]
+    value["修正后价值 → Sigmoid<br/>当前视角预期得分"]
     observation --> public & profession & global & history
     history --> transformer
     public & profession & global & transformer --> trunk
-    trunk --> base & residual & gate & value
-    base & residual & gate --> logits
+    trunk --> base & basevalue
+    observation & base & basevalue --> expert
+    base & expert --> logits
+    basevalue & expert --> value
     logits & mask --> policy
 ```
 
 ## 方法
 
-C++ 负责规则、合法动作、状态编码和批量模拟；Python/PyTorch 负责网络、搜索与自对弈训练。状态包含双方公共和职业状态、回合信息及最近八回合历史；合法动作由原生引擎提供掩码。
+C++ 负责规则、合法动作、状态编码和批量模拟；Python/PyTorch 负责网络、搜索与自对弈训练。状态包含双方公共和职业状态、回合信息及最近八回合历史；合法动作由原生引擎提供掩码；底座阶段屏蔽联想，幻影书专用模型可使用联想。
 
 针对双方同时行动，搜索在有限候选动作和深度内展开动作组合，使用 regret matching+ 近似求解局部收益矩阵。训练以搜索策略为策略目标、以折扣后的对局结果为价值目标，结合 replay 更新网络。
 
@@ -71,9 +73,9 @@ C++ 负责规则、合法动作、状态编码和批量模拟；Python/PyTorch �
 
 需要 Python 3.11、C++20 编译器、CMake、Ninja 和 uv。
 Windows 运行 `build.cmd`，Linux 运行 `bash build.sh`。
-当前 Master schema 为 8；此前的权重和课程数据需要重新生成。
+当前 Master schema 为 11；此前的权重和课程数据需要重新生成。
 
-当前启用八个职业；Monk、Prophet 暂时停用。规则见 [BlacksmithRuleCN.md](BlacksmithRuleCN.md)。
+当前启用七个职业。规则见 [BlacksmithRuleCN.md](BlacksmithRuleCN.md)。
 
 ## 本地对战
 

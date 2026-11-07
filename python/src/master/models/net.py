@@ -1,4 +1,4 @@
-"""Residual policy with mandatory history attention and association actions."""
+"""Residual policy with mandatory history attention and ordinary actions."""
 # 编码切片和动作编号由原生 schema 决定；模型不能自行改变这些布局。
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -8,26 +8,23 @@ import torch
 from blacksmith import master as engine
 from torch import Tensor, nn
 
-ARCHITECTURE = "residual-history-association-v1"
+ARCHITECTURE = "routed-profession-v1"
 
 
 @dataclass(frozen=True)
 class ModelConfig:
     hidden: int = 256
     features: int = engine.OBSERVATION_LENGTH
-    actions: int = engine.SKILL_NUM
+    actions: int = engine.BASE_ACTION_COUNT
     depth: int = 4
     history_width: int = 64
     history_layers: int = 1
     history_heads: int = 4
 
     def __post_init__(self) -> None:
-        # 联想动作与普通动作一一配对；维度校验防止旧权重静默套用新规则。
         if self.hidden < 8 or self.depth < 1 or self.history_layers < 1:
             raise ValueError("Residual depth and history layer count must be positive; hidden width must be >= 8")
-        if self.actions != 2 * engine.BASE_ACTION_COUNT:
-            raise ValueError("Association policy requires paired ordinary/borrowed action tables")
-        if self.features != engine.OBSERVATION_LENGTH or self.actions != engine.SKILL_NUM:
+        if self.features != engine.OBSERVATION_LENGTH or self.actions != engine.BASE_ACTION_COUNT:
             raise ValueError("Model dimensions must match the native schema")
         if (self.history_width < 2 or self.history_width % 2 or self.history_heads < 1
                 or self.history_width % self.history_heads):
@@ -40,8 +37,6 @@ class HistoryEncoder(nn.Module):
         width = config.history_width
         self.padding_index = config.actions
         self.actions = nn.Embedding(config.actions + 1, width // 2, padding_idx=config.actions)
-        self.base_actions = nn.Embedding(engine.BASE_ACTION_COUNT + 1, width // 2,
-                                         padding_idx=engine.BASE_ACTION_COUNT)
         self.numeric = nn.Linear(engine.HISTORY_TOKEN_LENGTH - 3, width)
         self.position = nn.Parameter(torch.empty(1, engine.HISTORY_LENGTH, width))
         self.summary = nn.Parameter(torch.empty(1, 1, width))
@@ -55,12 +50,10 @@ class HistoryEncoder(nn.Module):
     def forward(self, history: Tensor) -> Tensor:
         valid = history[..., 0] > 0
         # Replace padding before embedding/projection, so unused data has no effect.
-        indices = torch.where(valid.unsqueeze(-1), history[..., 1:3].long(), self.padding_index)
+        indices = torch.where(valid.unsqueeze(-1),
+                              history[..., 1:3].long() % engine.BASE_ACTION_COUNT,
+                              self.padding_index)
         actions = self.actions(indices).flatten(-2)
-        base = torch.where(valid.unsqueeze(-1), indices % engine.BASE_ACTION_COUNT,
-                           engine.BASE_ACTION_COUNT)
-        # 完整动作嵌入区分是否联想；基础动作嵌入让两种用法共享技能信息。
-        actions = actions + self.base_actions(base).flatten(-2)
         numeric = torch.where(valid.unsqueeze(-1), history[..., 3:], 0)
         tokens = actions + self.numeric(numeric) + self.position
         tokens = torch.cat((self.summary.expand(history.shape[0], -1, -1), tokens), dim=1)
@@ -97,8 +90,6 @@ class Policy(nn.Module):
                                   *(ResidualBlock(cfg.hidden, cfg.depth) for _ in range(cfg.depth)),
                                   nn.LayerNorm(cfg.hidden))
         self.actor = nn.Linear(cfg.hidden, engine.BASE_ACTION_COUNT)
-        self.association_actor = nn.Linear(cfg.hidden, engine.BASE_ACTION_COUNT)
-        self.association_gate = nn.Linear(cfg.hidden, 1)
         self.critic = nn.Linear(cfg.hidden, 1)
         if initialize:
             for layer in self.modules():
@@ -111,11 +102,6 @@ class Policy(nn.Module):
                     if layer.in_proj_bias is not None:
                         nn.init.zeros_(layer.in_proj_bias)
             nn.init.orthogonal_(self.actor.weight, .01)
-            # Start from shared skill scores; learn borrowing's cost and context.
-            nn.init.zeros_(self.association_actor.weight)
-            nn.init.zeros_(self.association_actor.bias)
-            nn.init.zeros_(self.association_gate.weight)
-            nn.init.zeros_(self.association_gate.bias)
             nn.init.zeros_(self.critic.weight)
 
     def forward(self, observation: Tensor, value_logits: bool = False) -> tuple[Tensor, Tensor]:
@@ -133,9 +119,6 @@ class Policy(nn.Module):
         parts.append(self.history(past))
         hidden = self.body(torch.cat(parts, dim=-1))
         logits = self.actor(hidden)
-        # 前半为普通动作 b，后半为 b+r+g；合法性归一化在完整动作空间统一执行。
-        borrowed = logits + self.association_actor(hidden) + self.association_gate(hidden)
-        logits = torch.cat((logits, borrowed), dim=-1)
         logits = logits.reshape(*shape, self.config.actions)
         raw = self.critic(hidden).reshape(shape)
         # 训练取原始 logits 使用稳定的 BCE；推理默认输出 [0,1] 预期得分。
@@ -154,27 +137,97 @@ def masked_log_probs(logits: Tensor, masks: Tensor) -> Tensor:
     return logits.float().masked_fill(~masks.bool(), -1e9).log_softmax(-1)
 
 
-def checkpoint(model: Policy, **metadata: Any) -> dict[str, Any]:
-    # 模型参数转到 CPU 保存；训练入口另外传入 Adam 状态与累计更新计数。
+class ProfessionModel(nn.Module):
+    """Zero-initialized correction to the frozen base policy and value logits."""
+    def __init__(self, config: ModelConfig, phantom: bool) -> None:
+        super().__init__()
+        self.phantom = phantom
+        self.body = nn.Sequential(nn.Linear(config.features + config.actions + 1, config.hidden), nn.SiLU())
+        self.output = nn.Linear(config.hidden, config.actions + 1 + (config.actions if phantom else 0))
+        nn.init.zeros_(self.output.weight)
+        nn.init.zeros_(self.output.bias)
+
+    def forward(self, observation: Tensor, logits: Tensor, value: Tensor) -> Tensor:
+        return self.output(self.body(torch.cat((observation, logits, value.unsqueeze(-1)), dim=-1)))
+
+
+class RoutedPolicy(nn.Module):
+    def __init__(self, base: Policy, enabled_roles: tuple[str, ...] = ()) -> None:
+        super().__init__()
+        self.base = base
+        self.config = base.config
+        self.experts = nn.ModuleDict({role: ProfessionModel(self.config, role == "phantombook")
+                                      for role in engine.ROLES[1:]})
+        self.enabled_roles = tuple(enabled_roles)
+
+    def forward(self, observation: Tensor, value_logits: bool = False) -> tuple[Tensor, Tensor]:
+        shape = observation.shape[:-1]
+        flat = observation.reshape(-1, self.config.features)
+        base_input = flat.clone()
+        association = engine.AUTHORIZED_OFFSET + engine.ASSOCIATION_SKILL
+        base_input[:, association] = 0
+        base_input[:, engine.COMMON_ENCODING_LENGTH + association] = 0
+        base_logits, raw = self.base(base_input, value_logits=True)
+        logits = torch.cat((base_logits, torch.full_like(base_logits, -1e9)), dim=-1)
+        roles = flat[:, engine.PROFESSION_ONE_HOT_OFFSET:
+                     engine.PROFESSION_ONE_HOT_OFFSET + len(engine.ROLES)].argmax(-1)
+        for role in self.enabled_roles:
+            indices = (roles == engine.ROLES.index(role)).nonzero(as_tuple=True)[0]
+            if indices.numel() == 0:
+                continue
+            correction = self.experts[role](flat[indices], base_logits[indices], raw[indices])
+            count = engine.BASE_ACTION_COUNT
+            ordinary = base_logits[indices] + correction[:, :count]
+            tail = (base_logits[indices] + correction[:, count + 1:]
+                    if role == "phantombook" else torch.full_like(ordinary, -1e9))
+            logits = logits.index_copy(0, indices, torch.cat((ordinary, tail), -1))
+            raw = raw.index_copy(0, indices, raw[indices] + correction[:, count])
+        return logits.reshape(*shape, engine.SKILL_NUM), (raw if value_logits else raw.sigmoid()).reshape(shape)
+
+    def mask(self, observations, masks):
+        masks = masks.copy()
+        if "phantombook" not in self.enabled_roles:
+            masks[..., engine.BASE_ACTION_COUNT:] = 0
+        else:
+            role = observations[..., engine.PROFESSION_ONE_HOT_OFFSET:
+                                engine.PROFESSION_ONE_HOT_OFFSET + len(engine.ROLES)].argmax(-1)
+            masks[..., engine.BASE_ACTION_COUNT:] *= (role == engine.ROLES.index("phantombook"))[..., None]
+        return masks
+
+    @staticmethod
+    def signed_values(values: Tensor) -> Tensor:
+        return 2 * values - 1
+
+    def train_stage(self, role: str | None) -> None:
+        if role is not None and role not in engine.ROLES[1:]:
+            raise ValueError("Unknown profession")
+        for parameter in self.parameters():
+            parameter.requires_grad_(False)
+        if role is None:
+            self.enabled_roles = ()
+            self.base.requires_grad_(True)
+        else:
+            if role not in self.enabled_roles:
+                self.enabled_roles = (*self.enabled_roles, role)
+            self.experts[role].requires_grad_(True)
+
+
+def checkpoint(model: RoutedPolicy, **metadata: Any) -> dict[str, Any]:
     return {**metadata, "model": {name: tensor.detach().cpu() for name, tensor in model.state_dict().items()},
             "architecture": ARCHITECTURE, "model_config": asdict(model.config),
-            "schema_version": engine.SCHEMA_VERSION,
-            "features": model.config.features, "actions": model.config.actions}
+            "schema_version": engine.SCHEMA_VERSION, "enabled_roles": model.enabled_roles,
+            "features": model.config.features, "actions": engine.SKILL_NUM}
 
 
-def load(path: str | Path) -> Policy:
-    # 先核对规则 schema 与架构标记，再按保存的配置建网；不猜测旧模型格式。
+def load(path: str | Path) -> RoutedPolicy:
     data: dict[str, Any] = torch.load(path, map_location="cpu", weights_only=True)
     if (data.get("schema_version") != engine.SCHEMA_VERSION or
             data.get("features") != engine.OBSERVATION_LENGTH or
-            data.get("actions") != engine.SKILL_NUM):
-        raise ValueError(
-            f"Checkpoint {path} uses schema/features/actions "
-            f"{data.get('schema_version')}/{data.get('features')}/{data.get('actions')}; "
-            f"native expects {engine.SCHEMA_VERSION}/{engine.OBSERVATION_LENGTH}/{engine.SKILL_NUM}. "
-            "Retrain for the current rules; old weights cannot be loaded as a new policy.")
-    if data.get("architecture") != ARCHITECTURE:
-        raise ValueError(f"Checkpoint {path} does not use {ARCHITECTURE}; retrain with the current architecture.")
-    model = Policy(config=ModelConfig(**data["model_config"]), initialize=False)
+            data.get("actions") != engine.SKILL_NUM or data.get("architecture") != ARCHITECTURE):
+        raise ValueError(f"Checkpoint {path} has an incompatible architecture or schema")
+    roles = tuple(data.get("enabled_roles", ()))
+    if len(set(roles)) != len(roles) or any(role not in engine.ROLES[1:] for role in roles):
+        raise ValueError("Checkpoint contains invalid profession routing")
+    model = RoutedPolicy(Policy(config=ModelConfig(**data["model_config"]), initialize=False), roles)
     model.load_state_dict(data["model"])
     return model.eval()

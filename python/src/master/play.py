@@ -44,7 +44,7 @@ def print_status(arena, human_seat: int, finished=False) -> None:
         print(f'{label}: HP {player["hp"]}/{player["mhp"]} | Role: {engine.ROLES[player["role"]]}')
         print(f'  Iron: {player["iron"]:g} | Gold iron: {player["gold_iron"]:g} | '
               f'Magic: {player["magic"]:g} | Space: {player["space"]:g} | Time: {player["time"]:g}')
-        resources = ('cross', 'dream', 'spirit', 'fire', 'water', 'wood', 'earth', 'bolt')
+        resources = ('dream', 'spirit', 'fire', 'water', 'wood', 'earth', 'bolt')
         print('  ' + ' | '.join(f'{key.title()}: {player[key]:g}' for key in resources))
 
 

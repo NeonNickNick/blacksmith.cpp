@@ -7,37 +7,33 @@ replay 与自对弈训练。训练仅使用 Master 自对弈。
 
 当前模型采用 hidden=256、4 个残差块、history width=64、1 层 Transformer、
 4 个注意力头、Sigmoid 价值头。残差分支为 LayerNorm → Linear → SiLU → Linear，
-按 `1/sqrt(depth)` 缩放。当前本地默认权重 `master-0099.pt` 使用 schema 8。
+按 `1/sqrt(depth)` 缩放。旧版默认权重与当前模型不兼容。
 
 各个 Python 文件的职责和阅读顺序见 [Python 文件索引](../../README.md#每个-python-文件的作用)。
 
-当前 `SCHEMA_VERSION=8`，策略头输出 266 个动作，每个视角的 observation 为
-1458 维 float32。Monk、Prophet 暂时通过注释停用。一般技能参数为 0～5，格挡为 1～4。
-动作表包含 133 个普通动作和对应的 133 个联想动作；不保留缺少后续技能的裸联想。
-`ACTIONS` 的每一项是 `((skill, param), ...)` 技能链，`ACTION_NAMES` 提供对应文本，
-`parse_action` 将文本转为动作编号，`action_index` 可接受根节点及可选的下一节点技能与参数。
+当前 `SCHEMA_VERSION=11`，每个视角的 observation 为 1284 维 float32。
+底座策略头输出 126 个普通技能动作评分和价值。动作表还包含 126 个联想动作，
+只在幻影书专用模型启用且规则允许时参与搜索。底座阶段屏蔽联想。
 
-模型固定采用残差主干、历史 Transformer、association 策略头和 Sigmoid 价值头。
-默认 hidden=256、4 个残差块、history width=64、1 层 Transformer、4 个注意力头。
-历史输入始终参与计算，`--history-layers` 必须大于 0；宽度、层数及注意力头数仍可调整。
-基础技能头给出 133 个评分 `b`；联想分支给出
-133 个残差 `r` 和一个门控评分 `g`，合成为 `[b, b+r+g]` 的 266 个完整动作评分。
-对完整动作应用同一个原生合法性掩码和 softmax，不分别选技能和参数，以免组合出非法动作。
-历史嵌入保留完整动作 ID，同时共享对应基础技能的嵌入，让普通用法与联想用法能相互学习。
-这保持搜索与 replay 的动作接口不变。checkpoint 必须记录
-`architecture=residual-history-association-v1`，不提供旧架构兼容加载或架构切换参数。
-`--initial` 和 `--resume` 沿用 checkpoint 中的宽度和层数。
+每个根职业有独立的可训练模型，输入为当前状态编码、底座策略评分及价值 logits，
+输出对评分和价值 logits 的修正。幻影书模型额外输出联想动作的修正；初始修正全为零，
+即从底座策略和价值开始。无职业或尚未训练的职业使用底座。模型按自身职业路由，
+双方视角、搜索分支及回放均使用同一规则。底座的输入始终屏蔽联想授权，
+历史中的联想动作以被复制技能的编号编码。
+
+checkpoint 使用 `architecture=routed-profession-v1`，保存底座、所有职业模型及已启用职业。
+旧架构和旧 schema 的权重需要重新训练。`--initial` 和 `--resume` 沿用 checkpoint 中的配置。
 
 | 区域 | 长度 |
 |---|---:|
-| 双方公共状态 | 2 × 266 |
-| 双方职业状态 | 2 × 382 |
+| 双方公共状态 | 2 × 234 |
+| 双方职业状态 | 2 × 327 |
 | 回合状态 | 2 |
 | 最近八个回合历史 | 8 × 20 |
 
 公共状态包含 HP、MHP、资源、职业、授权技能、攻击及防御；职业状态包含标记、
 延迟资源、回调、效果及当前启用职业的资源。历史记录双方完整动作编号和结算变化，
-包含联想的后续动作；搜索分支复制自己的历史。已停用职业的专属资源和分身不占输入通道。
+搜索分支复制自己的历史。
 职业身份只记录互斥的根节点职业，不包含炼药锅和炼金术等副装备；这些技能包的
 权限仍编码在授权技能中。炼药锅从根节点获取，炼金术从术士节点获取。
 checkpoint 的 schema、输入和输出维度必须与当前绑定一致。
@@ -53,15 +49,31 @@ Sigmoid 使用 logits 交叉熵训练，搜索用 `2*p-1` 转为零和收益。
 python/.venv/Scripts/python.exe -m master train --mode free --hidden 256 --depth 4 --history-width 64 --history-layers 1 --history-heads 4 --output out/training
 ```
 
+训练分两阶段。先训练底座，不指定 `--role`：
+
+```powershell
+python/.venv/Scripts/python.exe -m master train --mode free --output out/base
+```
+
+再以底座 checkpoint 为起点，逐个训练职业模型。每次只更新指定职业模型，底座和其他职业模型冻结；
+把上一阶段输出的 checkpoint 传给下一阶段，以累积全部职业模型：
+
+```powershell
+python/.venv/Scripts/python.exe -m master train --mode free --role warlock --initial out/base/master-1000.pt --output out/warlock
+python/.venv/Scripts/python.exe -m master train --mode free --role phantombook --initial out/warlock/master-1000.pt --output out/phantombook
+```
+
+其余职业依次使用 `cannon`、`driver`、`lancer`、`bloodsigil`、`crossbow`。
+`--resume` 只能继续相同阶段和职业；`--initial` 用于切换阶段或职业，重新开始优化器。
+自由开局中指定职业出现较少时，可使用覆盖目标职业的混合课程加快采样。
+
 `--mode free` 从双方 0 iron、空历史开始。
 `--mode phantombook --bank PATH` 使用 50% 自由开局和 50% 幻影书专项开局，
 replay 也按 50/50 分层抽样；专项均衡覆盖幻影书与其他启用职业的双方席位组合。
-可用 `python -m master curriculum --focus-role phantombook --association-ready --output PATH`
-生成合法前缀起点，使至少一名幻影书玩家拥有可用的 association 动作；不把前缀当作学习目标，
-也不强迫模型在后续对局中选择该动作。专项排除同职业镜像，因为借用技能主要需要不同职业对手。
+可用 `python -m master curriculum --focus-role phantombook --output PATH` 生成专项开局。
 可选 `--mode mixed --bank PATH` 为 Master 自对弈加入课程起点；课程自动覆盖所有启用职业，
-目前为八职业的 64 个有序组合，抽样权重为自由 40%、课程 60%。课程前缀不是训练目标。
-当前混合训练最小 batch 为 107，最小 replay 容量为 6827；旧课程库需要重新生成。
+目前为七职业的 49 个有序组合，抽样权重为自由 40%、课程 60%。课程前缀不是训练目标。
+当前混合训练最小 batch 为 82，最小 replay 容量为 5227；旧课程库需要重新生成。
 
 ```powershell
 python/.venv/Scripts/python.exe -m master curriculum --output out/curriculum.json
@@ -91,9 +103,8 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 `--checkpoint PATH` 固定权重；`--checkpoint-dir PATH` 指定随机池；`--seed` 可复现抽样。
 默认回车或选 `0` 双方 0 iron；`1` 玩家 0.5 iron；`2` 玩家 1 iron，Master 始终为 0。
 
-输入 `skill param [skill param ...]`，如 `association 0 magicattack 3`。
+输入 `skill param`，如 `magicattack 3`；幻影书也可输入 `association 0 magicattack 3`。
 单个技能省略参数按 0，名称与 standard_pvp 一致，不区分大小写，允许空格和制表符。
-联想消耗 2 Dream，免除复制技能的成本；要求对手当前能使用该技能且自己不能使用，不可复制联想自身。
 `resign`、`surrender` 或 `认输` 认输，`q` 直接退出，不支持重开。
 界面显示 HP/MHP、职业、各项资源及终局真实状态。
 每回合输出 Master 自己视角的价值头预测百分比，这是预期得分而非校准的纯胜率。
@@ -116,7 +127,7 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 对局记录仅保存在本次进程内存中。
 
 `--search-depth` 按双方同时行动的回合计，默认 2；`--width` 控制根部每方候选数，
-`--leaf-width` 控制深层候选数，最大均为当前动作总数 266。
+`--leaf-width` 控制深层候选数，最大均为当前动作总数 252。
 `--search-nodes` 为每步迭代加深的总节点预算，预算不足时采用最后完整完成的深度。
 `--search-batch` 控制分批展开内存。增大推理搜索不改变模型架构。
 

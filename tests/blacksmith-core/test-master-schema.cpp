@@ -11,13 +11,13 @@
 using namespace blacksmith::domain;
 using namespace blacksmith::python_bindings::master;
 
-static_assert(static_cast<int>(profession_type::CROSSBOW) == 8);
-static_assert(static_cast<int>(profession_type::SIZE) == 9);
-static_assert(SCHEMA_VERSION == 8);
-static_assert(COMMON_ENCODING_LENGTH == 266);
-static_assert(PROFESSION_ENCODING_LENGTH == 382);
-static_assert(OBSERVATION_LENGTH == 1458);
-static_assert(SKILL_NUM == 266);
+static_assert(static_cast<int>(profession_type::CROSSBOW) == 7);
+static_assert(static_cast<int>(profession_type::SIZE) == 8);
+static_assert(SCHEMA_VERSION == 11);
+static_assert(COMMON_ENCODING_LENGTH == 234);
+static_assert(PROFESSION_ENCODING_LENGTH == 327);
+static_assert(OBSERVATION_LENGTH == 1284);
+static_assert(SKILL_NUM == 252);
 
 namespace {
 void expect(float actual, float expected) {
@@ -65,6 +65,24 @@ void test_disable_count_encoding() {
 
 int main() {
     test_disable_count_encoding();
+    for (int i = 0; i < BASE_ACTION_COUNT; ++i) {
+        const auto &base = skill_table[static_cast<size_t>(i)];
+        const auto &borrowed = skill_table[static_cast<size_t>(i + BASE_ACTION_COUNT)];
+        if (base.skill_ == skill::ASSOCIATION || borrowed.skill_ != skill::ASSOCIATION ||
+            borrowed.next_skill_ != base.skill_ || borrowed.next_param_ != base.param_)
+            throw std::runtime_error("Invalid association action table");
+    }
+
+    state association_game;
+    const int wait = action_index(skill::IRON);
+    for (int i = 0; i < 5; ++i)
+        association_game.step(wait, wait);
+    association_game.step(action_index(skill::PHANTOMBOOK), action_index(skill::WARLOCK));
+    association_game.step(action_index(skill::FANTASIA), action_index(skill::MAGIC));
+    association_game.step(action_index(skill::FANTASIA), action_index(skill::MAGIC));
+    if (!association_game.legal(0, action_index(skill::ASSOCIATION, 0, skill::MAGIC_ATTACK, 2)))
+        throw std::runtime_error("Phantombook association must be available in native rules");
+
     state game;
     auto &player = game.players_[0];
     auto &enemy = game.players_[1];
@@ -81,9 +99,6 @@ int main() {
          .defender_ = nullptr},
         player);
     write_mark<mark_id::CHARGE, {.delayed_rounds_ = 2, .is_infinite_ = true}>(
-        player);
-    write_mark<mark_id::CRYSTAL_WALL_HIT, {}>(player);
-    write_mark<mark_id::DELAYED_CRYSTAL_WALL_HIT, {.delayed_rounds_ = 1}>(
         player);
     player.focus_.turn_context_.resource_context_.datas_.push_back(
         {.clock_ = {.delayed_rounds_ = 2},
@@ -115,15 +130,6 @@ int main() {
     expect(observation[mark], .5F);
     expect(observation[mark + 1], 0);
     expect(observation[mark + 2], 1);
-    const int wall_hit_mark =
-        2 * COMMON_ENCODING_LENGTH + MARK_OFFSET +
-        static_cast<int>(mark_id::CRYSTAL_WALL_HIT) * DELAY_BINS * CLOCK_LENGTH;
-    expect(observation[wall_hit_mark], .5F);
-    const int delayed_wall_hit_mark =
-        2 * COMMON_ENCODING_LENGTH + MARK_OFFSET +
-        (static_cast<int>(mark_id::DELAYED_CRYSTAL_WALL_HIT) * DELAY_BINS + 1) *
-            CLOCK_LENGTH;
-    expect(observation[delayed_wall_hit_mark], .5F);
     expect(observation[2 * COMMON_ENCODING_LENGTH + PENDING_RESOURCE_OFFSET +
                        (6 * DELAY_BINS + 2) * CLOCK_LENGTH],
            .4F);

@@ -45,7 +45,7 @@
 | 文件 | 职责与主要接口 |
 |---|---|
 | [blacksmith/setup.py](blacksmith/setup.py) | 将包含 CMake 编译扩展的 `blacksmith` wheel 标记为平台相关二进制包；不在这里编译 C++ 或重新实现游戏规则。 |
-| [tests/test_master.py](tests/test_master.py) | 检查原生动作/schema、职业合法性、association、历史与分支隔离、网络梯度、checkpoint、训练停止/恢复、课程和 replay。含按环境跳过的 CUDA 检查及暂时停用的 Prophet 用例。 |
+| [tests/test_master.py](tests/test_master.py) | 检查原生动作/schema、职业合法性、association、历史与分支隔离、网络梯度、checkpoint、训练停止/恢复、课程和 replay。含按环境跳过的 CUDA 检查。 |
 | [tests/test_play.py](tests/test_play.py) | 检查搜索深度/预算、模型池、命令行交互、开局资源、预测视角、认输、复盘边界和试玩恢复。使用可控的假搜索树及临时权重文件，避免依赖发布模型的数量。 |
 
 ## 从哪里开始阅读

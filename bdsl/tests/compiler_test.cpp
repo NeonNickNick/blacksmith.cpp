@@ -98,7 +98,7 @@ void rejections() {
         {package("<attack>([type] Physical [power] 1 [power] 2)"), "Duplicate parameter"},
         {package("<attack>([type] Physical [power] 1 [oops] 2)"), "Unknown parameter"},
         {package("<attack>([type] Unknown [power] 1)"), "Unknown attack type"},
-        {package("<defense>([type] GreyHP [power] 1)"), "Unsupported defense"},
+        {package("<defense>([type] UnsupportedDefense [power] 1)"), "Unsupported defense"},
         {package("<defense>([type] CommonArmor [power] 1 [analyzer] DefaultReduction)"), "does not match"},
         {package("<resource>([type] HP [power] 1)"), "Invalid resource"},
         {package("<use> 1 Unknown"), "Invalid resource"},

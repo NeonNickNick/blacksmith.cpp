@@ -68,7 +68,7 @@
     "mark-variables": { "name": "variable.other.mark.bdsl", "match": "@[A-Za-z_][A-Za-z_0-9]*@" },
     "resources": {
       "name": "support.type.resource.bdsl",
-      "match": "\\b(HP|MHP|Iron|CommonIron|GoldIron|Space|Time|Magic|Cross|Dream|Spirit|Fire|Water|Wood|Earth|Bolt|Jade|Crystal|CrystalBall)\\b"
+      "match": "\\b(HP|MHP|Iron|CommonIron|GoldIron|Space|Time|Magic|Dream|Spirit|Fire|Water|Wood|Earth|Bolt)\\b"
     },
     "types": {
       "patterns": [

@@ -24,14 +24,14 @@ void equal(float actual, float expected, const char *message) {
 
 constexpr std::array ROOT_PROFESSIONS{
     skill::WARLOCK,     skill::CANNON,  skill::DRIVER,  skill::LANCER,
-    skill::BLOODSIGIL, /* skill::MONK, skill::PROPHET, */ skill::HOLYBOOK,
+    skill::BLOODSIGIL,
     skill::PHANTOMBOOK, skill::CROSSBOW};
 constexpr std::array ROOT_PROFESSION_COSTS{1.0F, 4.0F, 3.0F, 3.0F, 7.0F,
-                                           /* 3.0F, 2.0F, */ 2.0F, 2.5F, 2.0F};
+                                           2.5F, 2.0F};
 constexpr std::array ROOT_PROFESSION_SKILLS{
     skill::MAGIC,      skill::STRIKE,      skill::SPACE_ATTACK,
-    skill::SKY_STRIKE, skill::BLOOD_BLADE, /* skill::JADE, */
-    /* skill::CRYSTAL, */ skill::PRAYER,      skill::FANTASIA,
+    skill::SKY_STRIKE, skill::BLOOD_BLADE,
+          skill::FANTASIA,
     skill::MAKE_BOLTS};
 
 struct battle {
@@ -152,7 +152,6 @@ void bulk_disable_balances_skill_set_changes() {
     expect(branch.authorized(skill::IRON) && branch.authorized(skill::MAGIC) &&
                branch.authorized(skill::MIDASTOUCH) &&
                !branch.authorized(skill::FIRE) &&
-               !branch.authorized(skill::CROSS) &&
                !game.authorized(skill::IRON),
            "[bulk_disable_balances_skill_set_changes] A copied lock state "
            "changed its source or ownership");
@@ -164,62 +163,10 @@ void bulk_disable_balances_skill_set_changes() {
     skills.release_all_skills(exceptions);
     expect(game.authorized(skill::IRON) && game.authorized(skill::MAGIC) &&
                game.authorized(skill::MIDASTOUCH) &&
-               !game.authorized(skill::FIRE) &&
-               !game.authorized(skill::CROSS),
+               !game.authorized(skill::FIRE),
            "[bulk_disable_balances_skill_set_changes] Bulk unlock resurrected "
            "a removed or unowned set");
 }
-
-// Temporarily disabled with Monk/Prophet.
-// void elemental_armor_preserves_passives() {
-//     battle game;
-//     game.acquire(skill::MONK, 3.0F);
-//     game.acquire(skill::CAULDRON, 3.0F);
-//     game.gain(resource_type::EARTH, 2.0F);
-//     game.gain(resource_type::WATER, 2.0F);
-//     game.player_.focus_.monk_.clones_.push_back(
-//         {.health_ = {.hp_ = 100, .mhp_ = 100}});
-//     auto &skills = game.player_.focus_.skills_;
-//     skill_context context{.action_ = {.skill_ = skill::IRON},
-//                           .self_ = &game.player_};
-//     skills.lock_all_skills();
-//     skills.lock_all_skills();
-//     skills.invoke_passive(context);
-//     expect(game.player_.focus_.monk_.clones_[0].golden_bell_uses_ == 1,
-//            "[elemental_armor_preserves_passives] Two skill locks changed "
-//            "passive execution");
-//     skills.release_all_skills();
-//     skills.invoke_passive(context);
-//     expect(game.player_.focus_.monk_.clones_[0].golden_bell_uses_ == 2,
-//            "[elemental_armor_preserves_passives] Partial unlock changed "
-//            "passive execution");
-//     skills.release_all_skills();
-//     skills.invoke_passive(context);
-//     expect(game.player_.focus_.monk_.clones_[0].golden_bell_uses_ == 3,
-//            "[elemental_armor_preserves_passives] Final unlock lost or "
-//            "duplicated a passive");
-//     for (int cycle = 0; cycle < 2; ++cycle) {
-//         const int before_equip =
-//             game.player_.focus_.monk_.clones_[0].golden_bell_uses_;
-//         game.step(skill::ELEMENTAL_ARMOR);
-//         const int uses = game.player_.focus_.monk_.clones_[0].golden_bell_uses_;
-//         expect(uses == before_equip + 1,
-//                "[elemental_armor_preserves_passives] Equip round changed "
-//                "passive execution");
-//         for (int i = 0; i < 3; ++i) {
-//             game.step(skill::GUARD);
-//             expect(game.player_.focus_.monk_.clones_[0].golden_bell_uses_ ==
-//                        uses + i + 1,
-//                    "[elemental_armor_preserves_passives] Armor mode lost or "
-//                    "duplicated a passive");
-//         }
-//         game.step();
-//         expect(game.player_.focus_.monk_.clones_[0].golden_bell_uses_ ==
-//                    uses + 4,
-//                "[elemental_armor_preserves_passives] Passive was lost or "
-//                "duplicated after mode exit");
-//     }
-// }
 
 void cauldron_coexists_with_professions() {
     for (std::size_t i = 0; i < ROOT_PROFESSIONS.size(); ++i) {
@@ -324,58 +271,6 @@ void equipment_coexists_and_restores_after_elemental_armor() {
     }
 }
 
-void holybook() {
-    battle game;
-    game.acquire(skill::HOLYBOOK, 2.0F);
-    game.gain(resource_type::CROSS);
-    game.incoming(5);
-    game.step(skill::PROFANATION);
-    expect(game.player_.focus_.health_.hp_ == 7, "First GreyHP is not 2");
-    game.incoming(5);
-    game.step(skill::PROFANATION);
-    expect(game.player_.focus_.health_.hp_ == 5, "Second GreyHP is not 3");
-    game.incoming(2);
-    game.step();
-    expect(game.player_.focus_.health_.hp_ == 3, "GreyHP survived a round");
-    game.step(skill::ABSOLUTION);
-    game.incoming(3);
-    game.step();
-    expect(game.player_.focus_.health_.hp_ == 1, "Permanent reduction expired");
-    game.step(skill::REBIRTH);
-    expect(game.player_.focus_.health_.hp_ == 4, "Rebirth first recovery");
-    game.step();
-    expect(game.player_.focus_.health_.hp_ == 7, "Rebirth second recovery");
-    game.step();
-    expect(game.player_.focus_.health_.hp_ == 10, "Rebirth third recovery");
-}
-
-void greyhp_pool_and_priority() {
-    battle pool;
-    pool.acquire(skill::HOLYBOOK, 2.0F);
-    pool.gain(resource_type::CROSS, 1.0F);
-    pool.incoming(3, 3);
-    pool.step(skill::PROFANATION);
-    expect(
-        pool.player_.focus_.health_.hp_ == 6,
-        "[greyhp_pool_and_priority] GreyHP was replenished for a second hit");
-
-    battle priority;
-    priority.acquire(skill::HOLYBOOK, 2.0F);
-    priority.gain(resource_type::CROSS, 1.0F);
-    write_defense<{.type_ = defense_type::COMMON_ARMOR,
-                   .power_ = 4,
-                   .clock_ = {.is_infinite_ = true},
-                   .defender_ = default_armor}>(priority.player_);
-    priority.incoming(5);
-    priority.step(skill::PROFANATION);
-    expect(priority.player_.focus_.health_.hp_ == 10 &&
-               priority.player_.focus_.defense_.defenses_.size() == 1 &&
-               priority.player_.focus_.defense_.defenses_[0].type_ ==
-                   defense_type::COMMON_ARMOR &&
-               priority.player_.focus_.defense_.defenses_[0].power_ == 0,
-           "[greyhp_pool_and_priority] GreyHP absorbed damage before armor");
-}
-
 void defender_rounding() {
     battle percentages;
     for (int i = 0; i < 2; ++i) {
@@ -451,123 +346,6 @@ void defender_rounding() {
            "damage");
 }
 
-// Temporarily disabled with Monk/Prophet.
-// void prophet() {
-//     battle game;
-//     game.acquire(skill::PROPHET, 2.0F);
-//     game.gain(resource_type::IRON);
-//     game.gain(resource_type::CRYSTAL, 1.0F);
-//     game.step(skill::GREATEST_CAUTION);
-//     game.step(skill::REVELATION);
-//     game.incoming(4, 5, 2);
-//     game.step(skill::FORETOLD);
-//     expect(game.player_.focus_.health_.hp_ == 8, "Evasion changed real damage");
-//     equal(game.player_.focus_.resource_.query(resource_type::CRYSTAL), 2.0F,
-//           "Evasion reward/revelation mismatch");
-//     game.step();
-//     expect(game.enemy_.focus_.health_.hp_ == 6,
-//            "Caution retaliation not delayed");
-//     game.step(skill::ASSERTION);
-//     expect(game.player_.focus_.health_.hp_ == 6,
-//            "Assertion did not penalize no attack");
-//     game.incoming(0, 0, 1);
-//     game.step(skill::ASSERTION);
-//     expect(game.player_.focus_.health_.hp_ == 5,
-//            "Assertion misclassified a real attack");
-//     game.step(skill::CRYSTAL_BALL);
-//     expect(!game.legal(skill::CRYSTAL_BALL), "CrystalBall exceeded its cap");
-//     expect(!game.legal(skill::ULTIMATUM, 5), "Ultimatum accepted n <= 5");
-
-//     battle wall;
-//     wall.acquire(skill::PROPHET, 2.0F);
-//     wall.gain(resource_type::CRYSTAL_BALL, 1.0F);
-//     wall.incoming(10);
-//     wall.step(skill::CRYSTAL_WALL);
-//     expect(wall.player_.focus_.health_.hp_ == 7, "Wall reduction is not 7");
-//     expect(wall.enemy_.focus_.health_.hp_ == 10,
-//            "Wall reflection was immediate");
-//     wall.incoming(10);
-//     wall.step();
-//     expect(wall.enemy_.focus_.health_.hp_ == 10 &&
-//                wall.player_.focus_.health_.hp_ == 7,
-//            "Wall reflection/opposition amount mismatch");
-//     equal(wall.player_.focus_.resource_.query(resource_type::CRYSTAL), 2.0F,
-//           "Wall did not refund a crystal for each independent round");
-//     wall.incoming(5);
-//     wall.step();
-//     expect(wall.player_.focus_.health_.hp_ == 5,
-//            "Wall lasted more than two rounds");
-
-//     battle ultimatum;
-//     ultimatum.acquire(skill::PROPHET, 2.0F);
-//     ultimatum.gain(resource_type::CRYSTAL_BALL, 1.0F);
-//     ultimatum.gain(resource_type::CRYSTAL, 2.0F);
-//     ultimatum.step(skill::ULTIMATUM, 6);
-//     for (int i = 0; i < 5; ++i)
-//         ultimatum.step();
-//     expect(ultimatum.enemy_.focus_.health_.hp_ == 10, "Ultimatum fired early");
-//     ultimatum.step();
-//     expect(ultimatum.enemy_.focus_.health_.hp_ == -2,
-//            "Ultimatum failed to fire");
-// }
-
-// Temporarily disabled with Monk/Prophet.
-// void crystal_wall_hit_marks() {
-//     const auto expect_cleared = [](const community &player) {
-//         expect(count_mark<mark_id::CRYSTAL_WALL_HIT>(player) == 0 &&
-//                    count_mark<mark_id::DELAYED_CRYSTAL_WALL_HIT>(player) == 0,
-//                "[crystal_wall_hit_marks] A wall hit mark survived its round");
-//     };
-//     battle single;
-//     single.acquire(skill::PROPHET, 2.0F);
-//     single.gain(resource_type::CRYSTAL_BALL, 1.0F);
-//     for (const int damage : std::array{2, 3, 1}) {
-//         write_attack<attack_type::MAGICAL>(damage, single.enemy_);
-//     }
-//     single.step(skill::CRYSTAL_WALL);
-//     equal(single.player_.focus_.resource_.query(resource_type::CRYSTAL), 1.0F,
-//           "[crystal_wall_hit_marks] One wall refunded once per hit");
-//     expect_cleared(single.player_);
-//     for (const int damage : std::array{2, 3}) {
-//         write_attack<attack_type::MAGICAL>(damage, single.enemy_);
-//     }
-//     single.step();
-//     equal(single.player_.focus_.resource_.query(resource_type::CRYSTAL), 2.0F,
-//           "[crystal_wall_hit_marks] The second wall round did not refund once");
-//     expect(single.player_.focus_.health_.hp_ == 10,
-//            "[crystal_wall_hit_marks] A wall did not reduce each magical hit");
-//     expect_cleared(single.player_);
-
-//     battle overlap;
-//     overlap.acquire(skill::PROPHET, 2.0F);
-//     overlap.player_.focus_.health_ = {.hp_ = 100, .mhp_ = 100};
-//     overlap.gain(resource_type::CRYSTAL_BALL, 2.0F);
-//     overlap.incoming(0, 1);
-//     overlap.step(skill::CRYSTAL_WALL);
-//     equal(overlap.player_.focus_.resource_.query(resource_type::CRYSTAL), 1.0F,
-//           "[crystal_wall_hit_marks] The first cast did not refund");
-//     write_attack<20, attack_type::MAGICAL>(overlap.enemy_);
-//     write_attack<20, attack_type::MAGICAL>(overlap.enemy_);
-//     overlap.step(skill::CRYSTAL_WALL);
-//     equal(overlap.player_.focus_.resource_.query(resource_type::CRYSTAL), 3.0F,
-//           "[crystal_wall_hit_marks] Overlapping walls did not refund "
-//           "independently");
-//     expect(
-//         overlap.player_.focus_.health_.hp_ == 88,
-//         "[crystal_wall_hit_marks] Overlapping walls changed their reduction");
-//     expect_cleared(overlap.player_);
-//     write_attack<1, attack_type::MAGICAL>(overlap.enemy_);
-//     write_attack<1, attack_type::MAGICAL>(overlap.enemy_);
-//     overlap.step();
-//     equal(overlap.player_.focus_.resource_.query(resource_type::CRYSTAL), 4.0F,
-//           "[crystal_wall_hit_marks] The newer delayed wall lost its refund");
-//     expect_cleared(overlap.player_);
-//     overlap.incoming(0, 1);
-//     overlap.step();
-//     expect(overlap.player_.focus_.health_.hp_ == 87,
-//            "[crystal_wall_hit_marks] An expired wall remained active");
-// }
-
 void default_defense_update_lifetimes() {
     battle game;
     auto &defenses = game.player_.focus_.defense_.defenses_;
@@ -602,145 +380,6 @@ void default_defense_update_lifetimes() {
     expect(defenses.size() == 1 && defenses[0].clock_.is_ringing(),
            "[default_defense_update_lifetimes] Infinite defense expired");
 }
-
-// Temporarily disabled with Monk/Prophet.
-// void monk() {
-//     battle game;
-//     game.acquire(skill::MONK, 3.0F);
-//     game.gain(resource_type::JADE);
-//     game.incoming(6);
-//     game.step(skill::GHOST_STEP);
-//     expect(game.player_.focus_.health_.hp_ == 6,
-//            "New clone did not redirect damage");
-//     expect(game.player_.focus_.monk_.clones_[0].health_.hp_ == 6,
-//            "Clone damage was not conserved");
-//     game.incoming(6, 2);
-//     game.step();
-//     expect(game.player_.focus_.health_.hp_ == 6,
-//            "Clone's first GoldenBellCover is not 100 percent");
-//     game.player_.focus_.monk_.clones_[0].golden_bell_uses_ = 1;
-//     game.incoming(5);
-//     game.step();
-//     expect(game.player_.focus_.health_.hp_ == 5,
-//            "40 percent cover or rounding mismatch");
-//     game.gain(resource_type::IRON, 1.0F);
-//     game.step(skill::MIST);
-//     expect(!game.legal(skill::MIST), "Mist cooldown did not start");
-//     game.step();
-//     expect(!game.legal(skill::MIST), "Mist cooldown ended too early");
-//     game.step();
-//     expect(game.legal(skill::MIST),
-//            "Mist cooldown did not end after three rounds");
-
-//     battle bell;
-//     bell.acquire(skill::MONK, 3.0F);
-//     bell.gain(resource_type::JADE);
-//     bell.incoming(5, 0, 1);
-//     bell.step(skill::GOLDEN_BELL_COVER);
-//     expect(bell.player_.focus_.health_.hp_ == 9, "Bell reduced true damage");
-//     bell.incoming(5);
-//     bell.step(skill::GOLDEN_BELL_COVER);
-//     expect(bell.player_.focus_.health_.hp_ == 6,
-//            "Second bell is not 40 percent");
-//     bell.incoming(5);
-//     bell.step(skill::GOLDEN_BELL_COVER);
-//     expect(bell.player_.focus_.health_.hp_ == 0,
-//            "Third bell is not vulnerable");
-
-//     battle fist;
-//     fist.acquire(skill::MONK, 3.0F);
-//     fist.gain(resource_type::JADE);
-//     fist.enemy_.focus_.health_ = {.hp_ = 100, .mhp_ = 100};
-//     fist.step(skill::GHOST_STEP);
-//     write_defense<{.type_ = defense_type::COMMON_ARMOR,
-//                    .power_ = 10,
-//                    .clock_ = {.is_infinite_ = true},
-//                    .defender_ = default_armor}>(fist.enemy_);
-//     fist.step(skill::MAZE_FIST);
-//     expect(fist.player_.focus_.monk_.clones_.empty(),
-//            "MazeFist did not consume clone");
-//     fist.incoming(20);
-//     fist.step();
-//     expect(fist.player_.focus_.health_.hp_ == 9,
-//            "MazeFist did not evade after armor hit");
-//     expect(fist.enemy_.focus_.defense_.defenses_[0].power_ == 4,
-//            "Lost-clone retaliation was not opposed by enemy attack");
-// }
-
-// Temporarily disabled with Monk/Prophet.
-// void monk_clone_lifecycle() {
-//     battle healing;
-//     healing.acquire(skill::MONK, 3.0F);
-//     healing.player_.focus_.health_ = {.hp_ = 7, .mhp_ = 14};
-//     healing.gain(resource_type::JADE, 1.0F);
-//     healing.gain(resource_type::IRON, 1.0F);
-//     healing.step(skill::GHOST_STEP);
-//     expect(healing.player_.focus_.monk_.clones_[0].health_.mhp_ == 14,
-//            "[monk_clone_lifecycle] Clone did not inherit the main body's MHP");
-//     healing.step(skill::MIST);
-//     expect(healing.player_.focus_.monk_.clones_[0].health_.hp_ == 9,
-//            "[monk_clone_lifecycle] Mist did not heal on its cast round");
-//     healing.step();
-//     expect(healing.player_.focus_.monk_.clones_[0].health_.hp_ == 12,
-//            "[monk_clone_lifecycle] Mist did not heal on its second round");
-//     healing.step();
-//     expect(healing.player_.focus_.monk_.clones_[0].health_.hp_ == 14,
-//            "[monk_clone_lifecycle] Mist could not heal above creation HP");
-
-//     battle split;
-//     split.acquire(skill::MONK, 3.0F);
-//     for (int i = 0; i < 2; ++i) {
-//         split.player_.focus_.monk_.clones_.push_back(
-//             {.health_ = {.hp_ = 100, .mhp_ = 100}, .golden_bell_uses_ = 2});
-//     }
-//     split.incoming(3);
-//     split.step();
-//     expect(split.player_.focus_.health_.hp_ == 10 &&
-//                split.player_.focus_.monk_.clones_[0].health_.hp_ == 98 &&
-//                split.player_.focus_.monk_.clones_[1].health_.hp_ == 99,
-//            "[monk_clone_lifecycle] Each clone did not round its own half up");
-
-//     battle lethal;
-//     lethal.acquire(skill::MONK, 3.0F);
-//     lethal.player_.focus_.health_.hp_ = 1;
-//     lethal.gain(resource_type::JADE, 1.0F);
-//     expect(lethal.legal(skill::GHOST_STEP),
-//            "[monk_clone_lifecycle] GhostStep rejected its final HP payment");
-//     lethal.step(skill::GHOST_STEP);
-//     expect(
-//         lethal.player_.focus_.health_.hp_ == 0 &&
-//             lethal.player_.focus_.monk_.clones_.empty(),
-//         "[monk_clone_lifecycle] A zero-HP clone survived its creation round");
-//     lethal.step();
-//     expect(lethal.enemy_.focus_.health_.hp_ == 5,
-//            "[monk_clone_lifecycle] The zero-HP clone did not trigger its echo");
-// }
-
-// Temporarily disabled with Monk/Prophet.
-// void failed_evasion_keeps_enhancements() {
-//     battle game;
-//     game.acquire(skill::PROPHET, 2.0F);
-//     game.gain(resource_type::IRON);
-//     game.gain(resource_type::CRYSTAL, 1.0F);
-//     game.step(skill::GREATEST_CAUTION);
-//     game.step(skill::REVELATION);
-//     game.step(skill::FORETOLD);
-//     game.incoming(0, 0, 1);
-//     game.step(skill::ASSERTION);
-//     expect(count_mark<mark_id::GREATEST_CAUTION>(game.player_) == 1 &&
-//                count_mark<mark_id::REVELATION>(game.player_) == 1,
-//            "[failed_evasion_keeps_enhancements] Failed evasion consumed buffs");
-//     game.incoming(1);
-//     game.step(skill::FORETOLD);
-//     equal(game.player_.focus_.resource_.query(resource_type::CRYSTAL), 2.0F,
-//           "[failed_evasion_keeps_enhancements] Revelation was not retained");
-//     expect(count_mark<mark_id::GREATEST_CAUTION>(game.player_) == 0 &&
-//                count_mark<mark_id::REVELATION>(game.player_) == 0,
-//            "[failed_evasion_keeps_enhancements] Successful evasion kept buffs");
-//     game.step();
-//     expect(game.enemy_.focus_.health_.hp_ == 6,
-//            "[failed_evasion_keeps_enhancements] Caution was not retained");
-// }
 
 void context_preprocesses_before_storage() {
     turn_context_component context;
@@ -816,43 +455,6 @@ void stacked_hallucination_preprocesses_once() {
            "[stacked_hallucination_preprocesses_once] New attacks lost layers "
            "or copied callbacks changed the original");
 }
-
-// Temporarily disabled with Monk/Prophet.
-// void hallucination_delays_ultimatum() {
-//     battle game;
-//     game.acquire(skill::PROPHET, 2.0F);
-//     game.gain(resource_type::CRYSTAL_BALL, 1.0F);
-//     game.gain(resource_type::CRYSTAL, 2.0F);
-//     game.enemy_.focus_.skills_.add_skill_set(SKILL_SET(phantombook));
-//     game.enemy_.focus_.resource_.gain(resource_type::DREAM, 2.0F);
-//     game.step(skill::IRON, 0, skill::HALLUCINATION);
-//     game.step(skill::ULTIMATUM, 6);
-//     for (int i = 0; i < 6; ++i) {
-//         game.step();
-//         expect(game.enemy_.focus_.health_.hp_ == 10,
-//                "[hallucination_delays_ultimatum] Explicit delay erased "
-//                "hallucination");
-//     }
-//     game.step();
-//     expect(game.enemy_.focus_.health_.hp_ == -2,
-//            "[hallucination_delays_ultimatum] Ultimatum did not fire after "
-//            "seven rounds");
-// }
-
-// Temporarily disabled with Monk/Prophet.
-// void attack_cancellation_order() {
-//     battle game;
-//     game.acquire(skill::MONK, 3.0F);
-//     game.gain(resource_type::JADE, 2.0F);
-//     write_defense<{.type_ = defense_type::MAGICAL_IMMUNITY,
-//                    .power_ = 1,
-//                    .defender_ = magical_immunity}>(game.enemy_);
-//     game.incoming(5);
-//     game.step(skill::DISILLUSIONMENT);
-//     expect(game.enemy_.focus_.health_.hp_ == 9,
-//            "[attack_cancellation_order] Attacks did not cancel in declaration "
-//            "order");
-// }
 
 void crossbow() {
     battle game;
@@ -1106,22 +708,17 @@ int main() {
         registrations();
         skill_disable_counts();
         bulk_disable_balances_skill_set_changes();
-        // elemental_armor_preserves_passives();
+
         cauldron_coexists_with_professions();
         equipment_coexists_and_restores_after_elemental_armor();
-        holybook();
-        greyhp_pool_and_priority();
+
         defender_rounding();
-        // prophet();
-        // crystal_wall_hit_marks();
+
         default_defense_update_lifetimes();
-        // monk();
-        // monk_clone_lifecycle();
-        // failed_evasion_keeps_enhancements();
+
         context_preprocesses_before_storage();
         stacked_hallucination_preprocesses_once();
-        // hallucination_delays_ultimatum();
-        // attack_cancellation_order();
+
         crossbow();
         phantombook();
         cauldron();

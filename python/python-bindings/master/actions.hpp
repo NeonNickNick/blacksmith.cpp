@@ -51,7 +51,6 @@ inline constexpr int BASE_ACTION_COUNT = [] {
     }
     return count;
 }();
-// Association cannot copy itself, so every legal chain has exactly two nodes.
 inline constexpr int SKILL_NUM = 2 * BASE_ACTION_COUNT;
 inline constexpr auto skill_table = [] {
     std::array<action, SKILL_NUM> result{};
@@ -65,8 +64,8 @@ inline constexpr auto skill_table = [] {
             result[index++] = {move, param};
     }
     for (int i = 0; i < BASE_ACTION_COUNT; ++i) {
-        const auto &next = result[static_cast<size_t>(i)];
-        result[index++] = {skill::ASSOCIATION, 0, next.skill_, next.param_};
+        const auto &base = result[static_cast<size_t>(i)];
+        result[index++] = {skill::ASSOCIATION, 0, base.skill_, base.param_};
     }
     return result;
 }();

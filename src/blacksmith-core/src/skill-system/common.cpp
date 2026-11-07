@@ -131,7 +131,7 @@ REGISTER(
 namespace {
 const std::vector<skill> ROOT_PROFESSION_SKILLS{
     skill::WARLOCK,     skill::CANNON,  skill::DRIVER,  skill::LANCER,
-    skill::BLOODSIGIL, /* skill::MONK, skill::PROPHET, */ skill::HOLYBOOK,
+    skill::BLOODSIGIL,
     skill::PHANTOMBOOK, skill::CROSSBOW};
 template <skill_set_func get_skill_set, profession_type type>
 void select_root_profession(community &player) {
@@ -175,22 +175,6 @@ REGISTER(bloodsigil, skill::BLOODSIGIL, REQUIRE(RESOURCE(R_IRON, 7.0F)),
              player.focus_.skills_.disable_skill(skill::STICK);
              player.focus_.skills_.disable_skill(skill::DRILL);
              player.focus_.skills_.disable_skill(skill::SLASH);))
-/* Temporarily disabled: Monk and Prophet.
-REGISTER(monk, skill::MONK, REQUIRE(RESOURCE(R_IRON, 3.0F)),
-         DSL(use_resource<3.0F, R_IRON>(player)),
-         DSL(select_root_profession<&get_monk, profession_type::MONK>(player)))
-
-REGISTER(
-    prophet, skill::PROPHET, REQUIRE(RESOURCE(R_IRON, 2.0F)),
-    DSL(use_resource<2.0F, R_IRON>(player)),
-    DSL(select_root_profession<&get_prophet, profession_type::PROPHET>(player)))
-*/
-
-REGISTER(holybook, skill::HOLYBOOK, REQUIRE(RESOURCE(R_IRON, 2.0F)),
-         DSL(use_resource<2.0F, R_IRON>(player)),
-         DSL(select_root_profession<&get_holybook, profession_type::HOLYBOOK>(
-             player)))
-
 REGISTER(phantombook, skill::PHANTOMBOOK, REQUIRE(RESOURCE(R_IRON, 2.5F)),
          DSL(use_resource<2.5F, R_IRON>(player)),
          DSL(select_root_profession<&get_phantombook,

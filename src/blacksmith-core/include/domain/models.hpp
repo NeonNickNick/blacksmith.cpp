@@ -25,8 +25,6 @@ enum class defense_type : std::uint8_t {
     STONE_SHELL,
     REAL_ARMOR,
     COMMON_ARMOR,
-    GREY_HP,
-    DAMAGE_TRANSFER,
     SIZE
 };
 enum class resource_type : std::uint8_t {
@@ -35,7 +33,7 @@ enum class resource_type : std::uint8_t {
     SPACE,
     TIME,
     MAGIC,
-    CROSS,
+
     DREAM,
     SPIRIT,
     FIRE,
@@ -43,9 +41,7 @@ enum class resource_type : std::uint8_t {
     WOOD,
     EARTH,
     BOLT,
-    JADE,
-    CRYSTAL,
-    CRYSTAL_BALL,
+
     SIZE,
     HP,
     MHP
@@ -107,10 +103,10 @@ using update_func = void (*)(community &, defense_entity &);
 enum class defense_id : uint8_t {
     DEFAULT,
     ARMOR12,
-    MONK_CLONES,
+
     NIGHTMARE_ARMOR,
     ELEMENTAL_ARMOR,
-    CRYSTAL_WALL,
+
     STONE_SHELL,
 };
 inline extern void default_update(community &player, defense_entity &defense);
@@ -189,12 +185,9 @@ enum class mark_id : uint8_t {
     COUNTER_ATTACK,
 
     BLOODSIGIL,
-    PROFANATION,
+
     CROSSBOW_AIM,
-    GREATEST_CAUTION,
-    REVELATION,
-    CRYSTAL_WALL_HIT,
-    DELAYED_CRYSTAL_WALL_HIT,
+
     SIZE,
 };
 struct mark_entity {
@@ -289,7 +282,7 @@ class resource_component {
     };
 
   private:
-    static constexpr std::size_t RESOURCE_NUMS = 15;
+    static constexpr std::size_t RESOURCE_NUMS = 11;
     std::array<resource_template, RESOURCE_NUMS> templates_;
     [[nodiscard]] static std::size_t template_index(resource_type type);
 
@@ -396,36 +389,9 @@ enum class skill : uint8_t {
     BLOOD_RECOVERY,
     BLOOD_RAGE,
 
-    // MONK,
-    // PROPHET,
-    HOLYBOOK,
     PHANTOMBOOK,
     CAULDRON,
     CROSSBOW,
-
-    // JADE,
-    // GHOST_STEP,
-    // GOLDEN_BELL_COVER,
-    // MAZE_FIST,
-    // MIST,
-    // DISILLUSIONMENT,
-
-    // CRYSTAL,
-    // CRYSTAL_BALL,
-    // FORETOLD,
-    // GREATEST_CAUTION,
-    // REVELATION,
-    // ASSERTION,
-    // CRYSTAL_WALL,
-    // REFRACTION,
-    // ULTIMATUM,
-
-    CROSS,
-    PRAYER,
-    ARK,
-    PROFANATION,
-    REBIRTH,
-    ABSOLUTION,
 
     FANTASIA,
     ASSOCIATION,
@@ -499,9 +465,7 @@ enum class profession_type : uint8_t {
     DRIVER,
     LANCER,
     BLOODSIGIL,
-    // MONK,
-    // PROPHET,
-    HOLYBOOK,
+
     PHANTOMBOOK,
     CROSSBOW,
     SIZE,
@@ -540,25 +504,6 @@ class skill_component {
 };
 //
 
-/* Temporarily disabled profession state.
-struct monk_clone {
-    health_component health_;
-    int golden_bell_uses_ = 0;
-    int mist_rounds_ = 0;
-};
-struct monk_component {
-    std::vector<monk_clone> clones_;
-    int golden_bell_uses_ = 0;
-    int mist_cooldown_ = 0;
-    int transfer_rounds_ = 0;
-};
-struct prophet_component {
-    bool evaded_ = false;
-    int caution_ = 0;
-    int revelation_ = 0;
-};
-*/
-
 // 玩家
 class body {
   public:
@@ -569,8 +514,6 @@ class body {
     mark_component mark_;
     turn_context_component turn_context_;
     skill_component skills_;
-    // monk_component monk_;
-    // prophet_component prophet_;
     void print_info() const;
 };
 //

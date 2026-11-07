@@ -35,7 +35,7 @@ test('grammar registers BDSL and classifies each token category', () => {
         ['<else>', 'keyword.control.flow.bdsl'], ['<require>', 'keyword.control.require.bdsl'],
         ['__N__', 'variable.language.skill-parameter.bdsl'], ['__index__', 'variable.language.repeat-index.bdsl'],
         ['@bonus@', 'variable.other.mark.bdsl'], ['Iron', 'support.type.resource.bdsl'],
-        ['CrystalBall', 'support.type.resource.bdsl'], ['HP', 'support.type.resource.bdsl'],
+        ['Dream', 'support.type.resource.bdsl'], ['HP', 'support.type.resource.bdsl'],
         ['Magical', 'storage.type.attack.bdsl'], ['CommonArmor', 'storage.type.defense.bdsl'],
         ['EraseResource', 'storage.type.effect.bdsl'], ['DefaultReduction', 'support.function.analyzer.bdsl'],
         ['Enemy', 'constant.other.target.bdsl'], ['MAGIC_ATTACK', 'constant.other.enum.bdsl'],

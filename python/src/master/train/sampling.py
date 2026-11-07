@@ -17,7 +17,7 @@ MIN_MIXED_REPLAY = ceil(64 / COURSE_MASS)
 def course_pairs(mode: str) -> tuple[tuple[int, int], ...]:
     if mode == "phantombook":
         role = engine.ROLES.index("phantombook")
-        # 保留两个席位方向，排除同职业镜像，让专项面对其他职业的可借用技能。
+        # 保留两个席位方向，排除同职业镜像，让专项面对其他职业。
         return tuple(pair for pair in COURSE_PAIRS if role in pair and pair != (role, role))
     return COURSE_PAIRS
 

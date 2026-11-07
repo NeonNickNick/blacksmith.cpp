@@ -40,7 +40,7 @@ function renderCombatant(player, target) {
     ['IRON', player.iron], ['GOLD IRON', player.gold_iron], ['MAGIC', player.magic],
     ['SPACE', player.space], ['TIME', player.time],
   ];
-  const other = [['CROSS', player.resources.cross], ['DREAM', player.resources.dream],
+  const other = [['DREAM', player.resources.dream],
     ['SPIRIT', player.resources.spirit], ['FIRE', player.resources.fire], ['WATER', player.resources.water],
     ['WOOD', player.resources.wood], ['EARTH', player.resources.earth], ['BOLT', player.resources.bolt]];
   target.innerHTML = `<div class="combatant-head"><span class="side-name">${player.label}</span><span class="role-tag">${player.role.toUpperCase()}</span></div>

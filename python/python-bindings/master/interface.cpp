@@ -170,6 +170,9 @@ expand(search_tree &tree, const int_array &candidates, bool retain) {
 } // namespace
 PYBIND11_MODULE(master, m) {
     m.attr("SCHEMA_VERSION") = SCHEMA_VERSION;
+    m.attr("PROFESSION_ONE_HOT_OFFSET") = PROFESSION_ONE_HOT_OFFSET;
+    m.attr("AUTHORIZED_OFFSET") = AUTHORIZED_OFFSET;
+    m.attr("ASSOCIATION_SKILL") = static_cast<int>(skill::ASSOCIATION);
     m.attr("OBSERVATION_LENGTH") = OBSERVATION_LENGTH;
     m.attr("COMMON_ENCODING_LENGTH") = COMMON_ENCODING_LENGTH;
     m.attr("PROFESSION_ENCODING_LENGTH") = PROFESSION_ENCODING_LENGTH;
@@ -204,7 +207,7 @@ PYBIND11_MODULE(master, m) {
     m.attr("ACTION_NAMES") = py::cast(names);
     m.attr("ROLES") = py::cast(std::vector<std::string>{
         "none", "warlock", "cannon", "driver", "lancer", "bloodsigil",
-        /* "monk", "prophet", */ "holybook", "phantombook", "crossbow"});
+        "phantombook", "crossbow"});
     m.def("parse_action", [](const std::string &input) {
         return action_index(blacksmith::skill_system::parse_skill_action(input));
     });
@@ -258,7 +261,6 @@ PYBIND11_MODULE(master, m) {
                         body.resource_.query_common(resource_type::SPACE);
                     info["time"] =
                         body.resource_.query_common(resource_type::TIME);
-                    info["cross"] = body.resource_.query(resource_type::CROSS);
                     info["dream"] = body.resource_.query(resource_type::DREAM);
                     info["spirit"] = body.resource_.query(resource_type::SPIRIT);
                     info["fire"] = body.resource_.query(resource_type::FIRE);

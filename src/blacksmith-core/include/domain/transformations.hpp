@@ -506,10 +506,6 @@ inline void magical_immunity(community & /*player*/, community & /*enemy*/,
         attack.power_ = 0;
     }
 }
-inline void direct_immunity(community & /*player*/, community & /*enemy*/,
-                            defense_entity & /*defense*/, attack_data &attack) {
-    attack.power_ = 0;
-}
 // update_funcs
 inline void default_update(community & /*player*/, defense_entity &defense) {
     defense.clock_.round_pass();

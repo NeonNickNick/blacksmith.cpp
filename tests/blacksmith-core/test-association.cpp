@@ -34,7 +34,7 @@ void test_parsing() {
     expect(parse_skill_action("iron").param_ == 0, "Single-skill shorthand lost");
     for (const auto *text : {"", "   ", "association 0 stick", "shield -1",
                              "iron 2147483648", "iron 1x", "iron +1",
-                             "unknown 0", "monk 0", "prophet 0"}) {
+                             "unknown 0"}) {
         bool rejected = false;
         try {
             static_cast<void>(parse_skill_action(text));

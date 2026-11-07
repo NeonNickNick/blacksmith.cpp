@@ -27,24 +27,18 @@ def action_named(name: str) -> int:
 
 
 def build(per_pair: int = 64, seed: int = 42, threads: int = 1,
-          focus_role: str | None = None, association_ready: bool = False) -> list[Entry]:
+          focus_role: str | None = None) -> list[Entry]:
     if per_pair < 1 or threads < 1:
         raise ValueError("per_pair and threads must be positive")
     rng = np.random.default_rng(seed)
     iron = action_named("IRON")
-    phantom = engine.ROLES.index("phantombook")
-    fantasia = action_named("fantasia")
-    if association_ready and focus_role != "phantombook":
-        raise ValueError("Association-ready starts require --focus-role phantombook")
     acquisition = [iron, *(action_named(name) for name in ACQUISITIONS[1:])]
     banned = set(acquisition[1:])
-    allowed = np.array([index not in banned for index in range(engine.SKILL_NUM)])
+    allowed = np.array([index < engine.BASE_ACTION_COUNT and index not in banned for index in range(engine.SKILL_NUM)])
     entries: list[Entry] = []
     for first, second in COURSE_PAIRS:
         # 职业对有序，幻影书在第一席和第二席的情况分别生成。
         if focus_role is not None and engine.ROLES.index(focus_role) not in (first, second):
-            continue
-        if association_ready and first == second:
             continue
         seen: set[bytes] = set()
         made = attempts = 0
@@ -67,13 +61,6 @@ def build(per_pair: int = 64, seed: int = 42, threads: int = 1,
                 finished = live & (end == turn)
                 # DreamWake can restore a pre-profession state during opening construction.
                 complete = finished & (current == (first, second)).all(-1)
-                borrowed = (masks[..., engine.BASE_ACTION_COUNT:] > 0).any(-1)
-                if association_ready:
-                    ready = ((current == phantom) & borrowed).any(-1)
-                    # 已到计划终点但还不能联想时继续准备，而不是接受无效专项起点。
-                    end[finished & ~ready] = turn + 1
-                    live[finished & ~ready] = True
-                    complete &= ready
                 for env in np.flatnonzero(complete):
                     # 编码包含实际状态与历史；同一职业对内不重复收录相同输入。
                     key = observations[env, 0].tobytes()
@@ -88,12 +75,8 @@ def build(per_pair: int = 64, seed: int = 42, threads: int = 1,
                 for env in np.flatnonzero(live):
                     for seat, target in enumerate((first, second)):
                         if end[env] >= 0:
-                            if association_ready and current[env, seat] == phantom and not borrowed[env, seat]:
-                                # Fantasia 积累 Dream；是否能借用某招仍由原生掩码决定。
-                                choices[env, seat] = fantasia if masks[env, seat, fantasia] else iron
-                            else:
-                                legal = np.flatnonzero((masks[env, seat] > 0) & allowed)
-                                choices[env, seat] = rng.choice(legal)
+                            legal = np.flatnonzero((masks[env, seat] > 0) & allowed)
+                            choices[env, seat] = rng.choice(legal)
                         elif current[env, seat] != target and turn >= waits[env, seat]:
                             desired = acquisition[target]
                             if masks[env, seat, desired]:
@@ -107,10 +90,10 @@ def build(per_pair: int = 64, seed: int = 42, threads: int = 1,
 
 
 def run(args: argparse.Namespace) -> None:
-    entries = build(args.per_pair, args.seed, args.threads, args.focus_role, args.association_ready)
+    entries = build(args.per_pair, args.seed, args.threads, args.focus_role)
     payload = {"schema_version": engine.SCHEMA_VERSION, "seed": args.seed,
                "roles": engine.ROLES, "per_pair": args.per_pair,
-               "focus_role": args.focus_role, "association_ready": args.association_ready,
+               "focus_role": args.focus_role,
                "entries": [{"roles": entry.roles, "prefix": entry.prefix} for entry in entries]}
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -126,5 +109,4 @@ def configure(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--focus-role", choices=engine.ROLES[1:])
-    parser.add_argument("--association-ready", action="store_true")
     parser.set_defaults(func=run)

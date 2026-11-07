@@ -31,12 +31,16 @@ def search(model, arena, rng, device, width=24, leaf_width=12, iterations=128,
             or max(width, leaf_width) > engine.SKILL_NUM or depth > engine.ROUND_LIMIT):
         raise ValueError(f'Positive search limits required; widths <={engine.SKILL_NUM}, depth <={engine.ROUND_LIMIT}')
     observation, masks = arena.observe()
+    if hasattr(model, "mask"):
+        masks = model.mask(observation, masks)
     root_width = min(width, int(masks.sum(-1).max()))
     root_choices = candidates(model, observation, masks, root_width, rng, device, 0)
     # 各加深层复用同一批根候选，避免候选抽样变化干扰深度比较和复盘排序。
     info = SearchInfo(depth, root_candidates=root_choices.copy())
 
     def evaluate(tree, states, legal, remaining, choices=None, root=False):
+        if hasattr(model, "mask"):
+            legal = model.mask(states, legal)
         if choices is None:
             branch_width = min(leaf_width, int(legal.sum(-1).max()))
             choices = candidates(model, states, legal, branch_width, rng, device, 0)

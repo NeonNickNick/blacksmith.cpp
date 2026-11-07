@@ -14,7 +14,7 @@ import torch
 from blacksmith import master as engine
 from master import play
 from master.agent import Agent as MasterAgent
-from master.models import ModelConfig, Policy
+from master.models import ModelConfig, Policy, RoutedPolicy
 from master.search import SearchInfo, search
 from master.train.search import search as training_search
 
@@ -92,10 +92,10 @@ class PlayTests(unittest.TestCase):
     def test_native_subset_and_two_round_search_equivalence(self):
         arena = engine.Arena(1, 1)
         before, masks = arena.observe()
-        model = Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
-                                         history_layers=1, history_heads=2)).eval()
+        model = RoutedPolicy(Policy(config=ModelConfig(hidden=16, depth=2, history_width=16,
+                                         history_layers=1, history_heads=2))).eval()
         with torch.no_grad():
-            model.critic.weight.normal_(0, .2)
+            model.base.critic.weight.normal_(0, .2)
         expected_actions, expected = training_search(model, arena, np.random.default_rng(12),
                                                      torch.device('cpu'), 2, 1, 16)
         actions, actual, info = search(model, arena, np.random.default_rng(12), torch.device('cpu'),
@@ -113,7 +113,7 @@ class PlayTests(unittest.TestCase):
         arena = engine.Arena(1, 1)
         iron = engine.ACTION_NAMES.index('iron 0')
         arena.reset(0, [[iron, iron]] * (engine.ROUND_LIMIT - 1))
-        model = Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2))
+        model = RoutedPolicy(Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2)))
         before, masks = arena.observe()
         actions, policies, info = search(model, arena, np.random.default_rng(42), torch.device('cpu'),
                                         width=3, leaf_width=2, depth=4, max_nodes=100)
@@ -153,8 +153,7 @@ class PlayTests(unittest.TestCase):
         for text in ('', '0', 'unknown 0', 'shield -1', 'shield 0.5',
                      'shield 6', 'shield 1 extra', 'iron 1', 'magicattack 0',
                      'association', 'association 0 magicattack',
-                     'iron 0 stick 0', 'association 0 association 0 stick 0',
-                     'monk', 'prophet'):
+                     'iron 0 stick 0', 'association 0 association 0 stick 0'):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 play.parse_action(text)
 
@@ -396,7 +395,7 @@ class PlayTests(unittest.TestCase):
         # 查看推荐属于只读分析，既不能推进真实局面，也不能消耗正式落子的随机流。
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'model.pt'
-            model = Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2))
+            model = RoutedPolicy(Policy(config=ModelConfig(hidden=16, history_layers=1, history_heads=2)))
             from master.models import checkpoint
             torch.save(checkpoint(model), path)
             agent = MasterAgent(path, seed=42, width=2, leaf_width=1, iterations=16,

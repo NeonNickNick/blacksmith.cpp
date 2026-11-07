@@ -75,6 +75,8 @@ def sample_candidates(priors: Floats, masks: Floats, width: int,
 
 def candidates(model: Policy, observations: Floats, masks: Floats, width: int,
                rng: np.random.Generator, device: torch.device, exploration: float) -> Ints:
+    if hasattr(model, "mask"):
+        masks = model.mask(observations, masks)
     flat = observations.reshape(-1, engine.OBSERVATION_LENGTH)
     flat_masks = masks.reshape(-1, engine.SKILL_NUM)
     active = np.flatnonzero(flat_masks.any(-1))
@@ -96,6 +98,8 @@ def search(model: Policy, arena: engine.Arena, rng: np.random.Generator,
     if iterations <= 0:
         raise ValueError("Regret iterations must be positive")
     observations, masks = observation if observation is not None else arena.observe()
+    if hasattr(model, "mask"):
+        masks = model.mask(observations, masks)
     tree = engine.SearchTree(arena)
     # 每次 expand 同时组合双方候选；搜索树复制状态，不能推进真实自对弈 Arena。
     root_choices = candidates(model, observations, masks, width, rng, device, exploration)

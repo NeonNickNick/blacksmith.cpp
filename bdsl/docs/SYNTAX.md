@@ -75,7 +75,7 @@ UTF-8 文本，可带 BOM，支持 LF / CRLF。空白和换行除字符串、注
 
 - `HP`、`MHP`：当前/最大生命值。
 - `Iron`：普通铁与金铁之和；`CommonIron`：普通铁；`GoldIron`：金铁。
-- `Space Time Magic Cross Dream Spirit Fire Water Wood Earth Bolt Jade Crystal CrystalBall`：对应资源总量。
+- `Space Time Magic Dream Spirit Fire Water Wood Earth Bolt`：对应资源总量。
 - `__N__`：当前主动技能 `context.action_.param_`；不自动限制为正数。
 - `__index__`：最近一层 repeat 的索引，从 0 开始。
 - `@name@`：此前在当前声明作用域取得的标记数量。
