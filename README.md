@@ -9,7 +9,7 @@ C++20 规则引擎、原生 Python 绑定和 Master 神经网络自对弈训练�
 - `python/src/master/models/`：网络定义与 checkpoint 加载。
 - `python/src/master/train/`：自对弈、课程、搜索和 replay。
 - `python/src/master/play.py`：本地人机对战与赛后复盘。
-- `models/blacksmith-master/`：本地 Master 权重，默认使用 `master-0099.pt`。
+- `models/blacksmith-master/`：本地 Master 权重，默认使用 `master-professions-final.pt`。
 - `out/build/native/`：本地 C++ 构建产物。
 - `tests/`、`python/tests/`：规则、训练和 play 的回归测试。
 

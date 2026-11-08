@@ -383,7 +383,7 @@ def make_handler(service: MatchService):
 
 def configure(parser: argparse.ArgumentParser) -> None:
     checkpoints = parser.add_mutually_exclusive_group()
-    checkpoints.add_argument("--checkpoint", help="Use one fixed model (web default: master-0099.pt)")
+    checkpoints.add_argument("--checkpoint", help="Use one fixed model (web default: master-professions-final.pt)")
     checkpoints.add_argument("--checkpoint-dir", help="Randomly choose a .pt file each game")
     parser.add_argument("--host", default="0.0.0.0", help="Interface to listen on (default: all interfaces)")
     parser.add_argument("--port", type=int, default=8765)

@@ -11,10 +11,11 @@ REGISTER_BATCH(makebolts, skill::MAKE_BOLTS,
                DSL_BATCH(write_resource<R_BOLT>(static_cast<float>(3 * N),
                                                 player)))
 
-REGISTER_BATCH(arrowrain, skill::ARROW_RAIN,
-               REQUIRE_BATCH(N > 0 && RESOURCE(R_BOLT, static_cast<float>(N))),
-               DSL_BATCH(use_resource<R_BOLT>(static_cast<float>(N), player)),
-               DSL_BATCH(write_attack<PHYSICAL>(N, player)))
+REGISTER_BATCH(
+    arrowrain, skill::ARROW_RAIN,
+    REQUIRE_BATCH(N > 0 && RESOURCE(R_BOLT, static_cast<float>(3 * N))),
+    DSL_BATCH(use_resource<R_BOLT>(static_cast<float>(3 * N), player)),
+    DSL_BATCH(write_attack<PHYSICAL>(3 * N, player)))
 
 REGISTER_(aim, skill::AIM, REQUIRE_(NOTHING), DSL_(),
           DSL(take_mark<mark_id::CROSSBOW_AIM>(player);

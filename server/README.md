@@ -13,7 +13,7 @@ Build the project once, then launch:
 server\start.cmd
 ```
 
-The server uses `models/blacksmith-master/master-0099.pt` for every web match.
+The server uses `models/blacksmith-master/master-professions-final.pt` for every web match.
 The page prints the local URL and the addresses it found for other devices. By default
 it listens on `0.0.0.0:8765`; open the printed `http://<computer-ip>:8765/` URL
 on another device on the same network. If Windows Firewall asks, allow inbound

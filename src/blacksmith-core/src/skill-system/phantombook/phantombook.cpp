@@ -15,7 +15,7 @@ REGISTER(fantasia, skill::FANTASIA, REQUIRE(RESOURCE(R_IRON, 0.5F)),
 
 REGISTER_CHAIN(
     association, skill::ASSOCIATION,
-    REQUIRE_CHAIN(next && RESOURCE(R_DREAM, 2.0F) &&
+    REQUIRE_CHAIN(next &&RESOURCE(R_DREAM, 2.0F) &&
                   [&player, &next]() {
                       if (next->skill_ == skill::ASSOCIATION) {
                           return false;
@@ -30,8 +30,7 @@ REGISTER_CHAIN(
                              player_result != check_result::SUCCESS;
                   }()),
     DSL(use_resource<2.0F, R_DREAM>(player)),
-    DSL_CAPTURE(skill_context copied{.action_ = next->copy(),
-                                    .self_ = &p};
+    DSL_CAPTURE(skill_context copied{.action_ = next->copy(), .self_ = &p};
                 const auto NONE_COST_DECLARE =
                     get_none_cost_skill_declare_mapping()[static_cast<size_t>(
                         next->skill_)];

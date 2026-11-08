@@ -19,10 +19,10 @@ void cannon_attack(community &player) {
 }
 } // namespace
 REGISTER(strike, skill::STRIKE, REQUIRE(RESOURCE(R_IRON, 1)),
-         DSL(use_resource<1.0F, R_IRON>(player)), DSL(cannon_attack<4>(player)))
+         DSL(use_resource<1.0F, R_IRON>(player)), DSL(cannon_attack<3>(player)))
 
 REGISTER(doublestrike, skill::DOUBLE_STRIKE, REQUIRE(RESOURCE(R_IRON, 2)),
-         DSL(use_resource<2.0F, R_IRON>(player)), DSL(cannon_attack<8>(player)))
+         DSL(use_resource<2.0F, R_IRON>(player)), DSL(cannon_attack<7>(player)))
 
 REGISTER(triplestrike, skill::TRIPLE_STRIKE, REQUIRE(RESOURCE(R_IRON, 3)),
          DSL(use_resource<3.0F, R_IRON>(player)),

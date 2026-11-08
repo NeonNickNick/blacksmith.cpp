@@ -12,7 +12,7 @@ from blacksmith import master as engine
 from .agent import Agent
 
 DEFAULT_CHECKPOINT_DIR = Path(__file__).resolve().parents[3] / 'models' / 'blacksmith-master'
-DEFAULT_CHECKPOINT = DEFAULT_CHECKPOINT_DIR / 'master-0099.pt'
+DEFAULT_CHECKPOINT = DEFAULT_CHECKPOINT_DIR / 'master-professions-final.pt'
 
 def parse_action(text: str) -> int:
     return engine.parse_action(text)
@@ -21,18 +21,22 @@ def parse_action(text: str) -> int:
 def starting_iron(fixed: float | None) -> float | None:
     if fixed is not None:
         return fixed
-    print('\nStarting mode: 0 = Both 0 iron (default); 1 = Player 0.5 iron; 2 = Player 1 iron.')
+    print('\nStarting mode: enter a non-negative integer n to start with n / 2 iron.')
     print('Master starts with 0 iron in all modes.')
     while True:
         try:
-            text = input('Mode [0/1/2, Enter = 0], or q: ').strip().lower()
+            text = input('Mode [Enter = 0], or q: ').strip().lower()
         except (EOFError, KeyboardInterrupt):
             return None
         if text == 'q':
             return None
-        if text in ('', '0', '1', '2'):
-            return {'': 0.0, '0': 0.0, '1': 0.5, '2': 1.0}[text]
-        print('Choose mode 0, 1 or 2; Enter selects 0.')
+        if not text:
+            return 0.0
+        if text.isascii() and text.isdecimal() and len(text) <= 8:
+            n = int(text)
+            if n <= 16777216:
+                return n / 2.0
+        print('Enter a non-negative integer up to 16777216; Enter selects 0.')
 
 
 def print_status(arena, human_seat: int, finished=False) -> None:
@@ -279,7 +283,7 @@ def run(args: argparse.Namespace) -> None:
 
 def configure(parser: argparse.ArgumentParser) -> None:
     checkpoints = parser.add_mutually_exclusive_group()
-    checkpoints.add_argument("--checkpoint", help="Use a fixed model (default: master-0099.pt)")
+    checkpoints.add_argument("--checkpoint", help="Use a fixed model (default: master-professions-final.pt)")
     checkpoints.add_argument("--checkpoint-dir", help="Randomly choose a .pt file from this directory each game")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--seed", type=int, default=None, help="Optional reproducible action and model sampling")

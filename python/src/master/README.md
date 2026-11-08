@@ -99,9 +99,9 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 .\play.cmd --starting-iron 0 --search-depth 3 --width 24 --leaf-width 4 --search-nodes 200000
 ```
 
-每次运行只玩一局，默认加载 `models/blacksmith-master/master-0099.pt`。
+每次运行只玩一局，默认加载 `models/blacksmith-master/master-professions-final.pt`。
 `--checkpoint PATH` 固定权重；`--checkpoint-dir PATH` 指定随机池；`--seed` 可复现抽样。
-默认回车或选 `0` 双方 0 iron；`1` 玩家 0.5 iron；`2` 玩家 1 iron，Master 始终为 0。
+开局模式输入非负整数 `n`，玩家初始 iron 为 `n / 2`；回车默认为 0，Master 始终为 0。例如 `5` 表示玩家有 2.5 iron。
 
 输入 `skill param`，如 `magicattack 3`；幻影书也可输入 `association 0 magicattack 3`。
 单个技能省略参数按 0，名称与 standard_pvp 一致，不区分大小写，允许空格和制表符。

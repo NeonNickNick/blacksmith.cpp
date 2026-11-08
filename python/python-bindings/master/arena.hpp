@@ -2,6 +2,7 @@
 
 #include "state.hpp"
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
@@ -32,8 +33,8 @@ class arena {
     }
     void reset_play(int index, int human_seat, float iron) {
         if ((human_seat != 0 && human_seat != 1) ||
-            (iron != 0.0F && iron != 0.5F && iron != 1.0F))
-            throw std::invalid_argument("Play requires seat 0/1 and iron 0/0.5/1");
+            !std::isfinite(iron) || iron < 0.0F)
+            throw std::invalid_argument("Play requires seat 0/1 and finite non-negative iron");
         state game;
         game.players_[static_cast<size_t>(human_seat)].focus_.resource_.gain(
             resource_type::IRON, iron);
