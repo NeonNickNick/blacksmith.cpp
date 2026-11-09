@@ -185,6 +185,7 @@ enum class mark_id : uint8_t {
     COUNTER_ATTACK,
 
     BLOODSIGIL,
+    CROSSBOW_ARROW_RAIN = BLOODSIGIL,
 
     CROSSBOW_AIM,
 

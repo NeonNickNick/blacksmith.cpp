@@ -231,3 +231,36 @@ def load(path: str | Path) -> RoutedPolicy:
     model = RoutedPolicy(Policy(config=ModelConfig(**data["model_config"]), initialize=False), roles)
     model.load_state_dict(data["model"])
     return model.eval()
+
+
+def load_with_specialists(base_path: str | Path, specialist_path: str | Path) -> RoutedPolicy:
+    """Load the base checkpoint and overlay the enabled expert weights from another checkpoint.
+
+    Expert corrections are trained against a particular frozen base. Refuse to combine
+    mismatched bases so play cannot silently route an expert over incompatible logits.
+    """
+    base = load(base_path)
+    specialist = load(specialist_path)
+    if base.config != specialist.config:
+        raise ValueError("Base and specialist checkpoints use different model configurations")
+
+    base_state = base.state_dict()
+    specialist_state = specialist.state_dict()
+    base_keys = [key for key in base_state if key.startswith("base.")]
+    if not base_keys or any(not torch.equal(base_state[key], specialist_state[key]) for key in base_keys):
+        raise ValueError("Specialist checkpoint was trained from a different base checkpoint")
+    roles = specialist.enabled_roles
+    if not roles:
+        raise ValueError("Specialist checkpoint does not enable any profession experts")
+
+    merged_state = dict(base_state)
+    for role in roles:
+        prefix = f"experts.{role}."
+        keys = [key for key in specialist_state if key.startswith(prefix)]
+        if not keys:
+            raise ValueError(f"Specialist checkpoint has no weights for {role}")
+        for key in keys:
+            merged_state[key] = specialist_state[key]
+    base.load_state_dict(merged_state)
+    base.enabled_roles = tuple(dict.fromkeys((*base.enabled_roles, *roles)))
+    return base.eval()

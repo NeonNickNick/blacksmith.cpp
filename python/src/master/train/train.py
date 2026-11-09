@@ -68,7 +68,7 @@ def run(args: argparse.Namespace) -> None:
             group["lr"] = args.lr
         start_update, games, gradients = saved["update"], saved["games"], saved["gradient_steps"]
     arena = engine.Arena(args.envs, args.threads)
-    replay = StratifiedReplay(args.mode, args.replay)
+    replay = StratifiedReplay(args.mode, args.replay, args.replay_half_life)
     starts = Starts(args.mode, args.bank, args.seed + 1)
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=False)
@@ -80,6 +80,7 @@ def run(args: argparse.Namespace) -> None:
         "rules_sha256": digest(engine.__file__), "schema_version": engine.SCHEMA_VERSION,
         "model_config": asdict(model.config), "device": str(device),
         "replay_masses": masses(args.mode), "course_pairs": course_pairs(args.mode),
+        "replay_age_half_life_updates": args.replay_half_life,
         "bank_sha256": digest(args.bank) if args.mode != "free" else None,
         "empty_replay": True, "prefixes_used_as_targets": False,
         "resume_scope": "model and optimizer; fresh replay and episodes"})
@@ -158,7 +159,7 @@ def run(args: argparse.Namespace) -> None:
                     if not outcome:
                         continue
                     # 只有终局后才知道价值目标；中断时未完成局不会进入 replay。
-                    replay.add(groups[env], histories[env], outcome)
+                    replay.add(groups[env], histories[env], outcome, update)
                     histories[env].clear()
                     roles = [int(result[4]), int(result[5])]
                     terminal_roles.update(str(role) for role in roles)
@@ -187,7 +188,7 @@ def run(args: argparse.Namespace) -> None:
                     lr = float(args.min_lr + .5 * (args.lr - args.min_lr) * (1 + np.cos(np.pi * fraction)))
                     for group in optimizer.param_groups:
                         group["lr"] = lr
-                    batch = replay.sample(rng, args.batch_size)
+                    batch = replay.sample(rng, args.batch_size, update)
                     x, masks_t, policy_t, value_t, weights = (torch.as_tensor(array, device=device) for array in batch)
                     if args.role:
                         roles = x[:, engine.PROFESSION_ONE_HOT_OFFSET:
@@ -262,6 +263,8 @@ def configure(parser: argparse.ArgumentParser) -> None:
                         help="Elapsed schedule seconds before resume; does not extend the runtime budget")
     parser.add_argument("--max-gradient-steps", type=int, default=0)
     parser.add_argument("--min-lr", type=float, default=0)
+    parser.add_argument("--replay-half-life", type=float, default=50,
+                        help="Replay sample-loss weight halves every N training updates")
     for name, default in (("envs", 32), ("threads", 12), ("width", 8), ("leaf-width", 4),
                           ("horizon", 32), ("updates", 1000), ("batches", 24),
                           ("batch-size", 512), ("replay", 131072), ("regret-iterations", 64),

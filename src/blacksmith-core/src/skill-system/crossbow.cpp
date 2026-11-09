@@ -13,9 +13,14 @@ REGISTER_BATCH(makebolts, skill::MAKE_BOLTS,
 
 REGISTER_BATCH(
     arrowrain, skill::ARROW_RAIN,
-    REQUIRE_BATCH(N > 0 && RESOURCE(R_BOLT, static_cast<float>(3 * N))),
-    DSL_BATCH(use_resource<R_BOLT>(static_cast<float>(3 * N), player)),
-    DSL_BATCH(write_attack<PHYSICAL>(3 * N, player)))
+    REQUIRE_BATCH(N >= 0 && RESOURCE(R_BOLT, 3.0F * static_cast<float>(N))),
+    DSL_BATCH(use_resource<R_BOLT>(3.0F * static_cast<float>(N), player)),
+    DSL_BATCH(if (take_mark<mark_id::CROSSBOW_ARROW_RAIN>(player) > 0) {
+        write_attack<PHYSICAL>(3 * N, player);
+    } else {
+        write_attack<PHYSICAL>(3 * N + 1, player);
+        write_mark<mark_id::CROSSBOW_ARROW_RAIN>(player);
+    }))
 
 REGISTER_(aim, skill::AIM, REQUIRE_(NOTHING), DSL_(),
           DSL(take_mark<mark_id::CROSSBOW_AIM>(player);
@@ -29,7 +34,10 @@ REGISTER(critical, skill::CRITICAL, REQUIRE(RESOURCE(R_BOLT, 1.0F)),
              } else {
                  write_attack<1, PHYSICAL>(player);
                  write_attack<1, REAL>(player);
-             }))
+             }
+             write_defense<{.type_ = defense_type::COMMON_REDUCTION,
+                            .power_ = 1,
+                            .defender_ = default_reduction}>(player);))
 
 REGISTER_BATCH(block, skill::BLOCK,
                REQUIRE_BATCH(N >= 1 && N <= 4 &&

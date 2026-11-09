@@ -32,14 +32,14 @@ void bloodsigil_attack(community &player) {
 } // namespace
 REGISTER(bloodblade, skill::BLOOD_BLADE, REQUIRE(HP(5)),
          DSL(use_resource<4.0F, R_HP>(player)),
-         DSL(bloodsigil_attack<6, 0.75F>(player)))
+         DSL(bloodsigil_attack<6, 1.0F>(player)))
 
 REGISTER(bloodlust, skill::BLOOD_LUST, REQUIRE(HP(3)),
          DSL(use_resource<2.0F, R_HP>(player)),
          DSL(write_mark<BLOODSIGIL>(player)))
 
 REGISTER_(bloodrecovery, skill::BLOOD_RECOVERY, REQUIRE_(NOTHING), DSL_(),
-          DSL(write_recovery<1>(player)))
+          DSL(write_recovery<2>(player)))
 
 REGISTER(bloodrage, skill::BLOOD_RAGE, REQUIRE(HP(2) && !HP(6)),
          DSL(use_resource<1.0F, R_HP>(player)),

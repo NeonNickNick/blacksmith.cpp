@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from blacksmith import master as engine
 
-from .models import load
+from .models import load, load_with_specialists
 from .train.search import search
 
 
@@ -14,9 +14,11 @@ class Agent:
     def __init__(self, checkpoint: str | Path, device: str = "cpu", seed: int = 42,
                  width: int = 24, leaf_width: int = 12, iterations: int = 128,
                  search_depth: int | None = None, max_nodes: int = 200000,
-                 batch_cells: int = 4096) -> None:
+                 batch_cells: int = 4096,
+                 specialist_checkpoint: str | Path | None = None) -> None:
         self.device = torch.device(device)
-        self.model = load(checkpoint).to(self.device).eval()
+        self.model = (load_with_specialists(checkpoint, specialist_checkpoint)
+                      if specialist_checkpoint else load(checkpoint)).to(self.device).eval()
         self.rng = np.random.default_rng(seed)
         # 分析按同一种子重新建 RNG，查看推荐不会改变下一次正式落子的抽样。
         self.analysis_seed = seed

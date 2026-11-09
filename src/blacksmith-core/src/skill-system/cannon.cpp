@@ -26,8 +26,7 @@ REGISTER(doublestrike, skill::DOUBLE_STRIKE, REQUIRE(RESOURCE(R_IRON, 2)),
 
 REGISTER(triplestrike, skill::TRIPLE_STRIKE, REQUIRE(RESOURCE(R_IRON, 3)),
          DSL(use_resource<3.0F, R_IRON>(player)),
-         DSL(cannon_attack<11>(player); write_mark<CANNON>(player);
-             write_resource<0.5F, R_IRON>(player)))
+         DSL(cannon_attack<11>(player); write_mark<CANNON>(player)))
 
 REGISTER(apshell, skill::APSHELL, REQUIRE(RESOURCE(R_IRON, 1)),
          DSL(use_resource<1.0F, R_IRON>(player)),

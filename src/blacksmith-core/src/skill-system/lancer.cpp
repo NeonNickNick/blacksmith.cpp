@@ -127,7 +127,7 @@ REGISTER(charge, skill::CHARGE, REQUIRE([](const community &player) {
                      return;
                  }
                  write_mark<COUNTER_ATTACK>(player);
-                 modify<attack_data, &lancer_attack<9>,
+                 modify<attack_data, &lancer_attack<10>,
                         [](attack_data &data, community &player) {
                             data.power_ += 4 * take_mark<CHARGE>(player);
                             data.type_ = MAGICAL;

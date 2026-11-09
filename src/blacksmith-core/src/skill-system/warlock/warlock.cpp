@@ -11,7 +11,8 @@ REGISTER(magic, skill::MAGIC, REQUIRE(RESOURCE(R_IRON, 1.0F)),
 
 REPEAT_BATCH(
     magicattack,
-    DSL_BATCH(write_attack<MAGICAL, {.delayed_rounds_ = index}>(2 * N, player)))
+    DSL_BATCH(write_attack<MAGICAL, {.delayed_rounds_ = index}>(
+        index == 0 ? 2 * N - 1 : 2 * N, player)))
 
 REGISTER_BATCH(magicattack, skill::MAGIC_ATTACK,
                REQUIRE_BATCH(N > 0 && RESOURCE(R_MAGIC, static_cast<float>(N))),
@@ -20,7 +21,7 @@ REGISTER_BATCH(magicattack, skill::MAGIC_ATTACK,
 
 REPEAT_BATCH(magicshield, DSL_BATCH(write_defense<{.delayed_rounds_ = index}>(
                                         {.type_ = defense_type::REAL_REDUCTION,
-                                         .power_ = 3 * N,
+                                         .power_ = 3 * N - 1,
                                          .clock_ = {},
                                          .defender_ = default_reduction,
                                          .update_ = default_update},

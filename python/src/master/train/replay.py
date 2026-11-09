@@ -19,15 +19,17 @@ class Replay:
         self.masks = np.empty((capacity, engine.SKILL_NUM), np.float32)
         self.policies = np.empty_like(self.masks)
         self.values = np.empty(capacity, np.float32)
+        self.updates = np.empty(capacity, np.int64)
         self.capacity, self.cursor, self.size = capacity, 0, 0
 
-    def add_game(self, history: History, outcome: int) -> None:
+    def add_game(self, history: History, outcome: int, update: int = 0) -> None:
         value = 1 if outcome == 1 else -1 if outcome == 2 else 0
         for turn, (states, masks, policies) in enumerate(history):
             for seat in range(2):
                 index = self.cursor
                 self.states[index], self.masks[index] = states[seat], masks[seat]
                 self.policies[index] = policies[seat]
+                self.updates[index] = update
                 # 第二席反转胜负符号；越早的局面折扣越多，之后映射为向 0.5 收缩的目标。
                 self.values[index] = value * (1 if seat == 0 else -1) * DISCOUNT ** (len(history) - turn - 1)
                 self.cursor = (self.cursor + 1) % self.capacity
@@ -36,8 +38,11 @@ class Replay:
 
 
 class StratifiedReplay:
-    def __init__(self, mode: str, capacity: int) -> None:
+    def __init__(self, mode: str, capacity: int, age_half_life: float = 50) -> None:
         self.mode = mode
+        if age_half_life <= 0:
+            raise ValueError("Replay age half-life must be positive")
+        self.age_half_life = age_half_life
         self.masses = masses(mode)
         if mode == "mixed" and capacity < MIN_MIXED_REPLAY:
             raise ValueError(f"Mixed replay requires capacity >= {MIN_MIXED_REPLAY}")
@@ -45,15 +50,15 @@ class StratifiedReplay:
             raise ValueError("Each replay stratum requires capacity >= 64")
         self.pools = {key: Replay(int(capacity * mass)) for key, mass in self.masses.items()}
 
-    def add(self, group: int, history: History, outcome: int) -> None:
-        self.pools[group].add_game(history, outcome)
+    def add(self, group: int, history: History, outcome: int, update: int = 0) -> None:
+        self.pools[group].add_game(history, outcome, update)
 
     def ready(self, size: int) -> bool:
         # 每个目标分层都要有数据，不能用已就绪的少数职业代替整个采样分布。
         return all(pool.size >= 64 for pool in self.pools.values()) and sum(
             pool.size for pool in self.pools.values()) >= size
 
-    def sample(self, rng: np.random.Generator, size: int) -> tuple[Floats, Floats, Floats, Floats, Floats]:
+    def sample(self, rng: np.random.Generator, size: int, update: int = 0) -> tuple[Floats, Floats, Floats, Floats, Floats]:
         if self.mode == "mixed" and size < MIN_MIXED_BATCH:
             raise ValueError(f"Mixed batches require at least {MIN_MIXED_BATCH} samples")
         pairs = course_pairs(self.mode)
@@ -65,12 +70,17 @@ class StratifiedReplay:
                         (i < (size - free) % len(pairs)) for i in range(len(pairs))}}
         arrays: list[list[Floats]] = [[], [], [], [], []]
         for group, count in counts.items():
+            if count == 0:
+                continue
             pool = self.pools[group]
             indices = rng.integers(pool.size, size=count)
             for output, source in zip(arrays[:4], (pool.states, pool.masks, pool.policies, pool.values)):
                 output.append(source[indices])
-            # 整数配额会产生舍入；每层总损失权重仍严格等于它的目标质量。
-            arrays[4].append(np.full(count, self.masses[group] / count, np.float32))
+            # 指数年龄衰减；归一化到均值 1，保留每个分层原有的总损失质量。
+            ages = np.maximum(0, update - pool.updates[indices])
+            freshness = np.exp2(-ages / self.age_half_life)
+            freshness /= freshness.mean()
+            arrays[4].append((self.masses[group] / count * freshness).astype(np.float32))
         result = [np.concatenate(parts) for parts in arrays]
         return result[0], result[1], result[2], result[3], result[4]
 

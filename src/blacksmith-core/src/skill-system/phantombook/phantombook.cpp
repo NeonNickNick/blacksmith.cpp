@@ -11,11 +11,11 @@ BEGIN_SKILL_SET
 
 REGISTER(fantasia, skill::FANTASIA, REQUIRE(RESOURCE(R_IRON, 0.5F)),
          DSL(use_resource<0.5F, R_IRON>(player)),
-         DSL(write_resource<1.0F, R_DREAM>(player)))
+         DSL(write_resource<1.25F, R_DREAM>(player)))
 
 REGISTER_CHAIN(
     association, skill::ASSOCIATION,
-    REQUIRE_CHAIN(next &&RESOURCE(R_DREAM, 2.0F) &&
+    REQUIRE_CHAIN(next &&RESOURCE(R_DREAM, 1.5F) &&
                   [&player, &next]() {
                       if (next->skill_ == skill::ASSOCIATION) {
                           return false;
@@ -29,15 +29,15 @@ REGISTER_CHAIN(
                       return opp_result == check_result::SUCCESS &&
                              player_result != check_result::SUCCESS;
                   }()),
-    DSL(use_resource<2.0F, R_DREAM>(player)),
+    DSL(use_resource<1.5F, R_DREAM>(player)),
     DSL_CAPTURE(skill_context copied{.action_ = next->copy(), .self_ = &p};
                 const auto NONE_COST_DECLARE =
                     get_none_cost_skill_declare_mapping()[static_cast<size_t>(
                         next->skill_)];
                 NONE_COST_DECLARE(copied);))
 
-REGISTER(hallucination, skill::HALLUCINATION, REQUIRE(RESOURCE(R_DREAM, 2.0F)),
-         DSL(use_resource<2.0F, R_DREAM>(player)),
+REGISTER(hallucination, skill::HALLUCINATION, REQUIRE(RESOURCE(R_DREAM, 1.5F)),
+         DSL(use_resource<1.5F, R_DREAM>(player)),
          DSL(write_effect<effect_target_type::ENEMY,
                           {.clock_ = {},
                            .take_effect_ = [](community &player,
@@ -56,7 +56,7 @@ REGISTER(hallucination, skill::HALLUCINATION, REQUIRE(RESOURCE(R_DREAM, 2.0F)),
                                context.register_preprocess(delay_attack);
                            }}>(player)))
 
-REGISTER(dreamwake, skill::DREAM_WAKE, REQUIRE(RESOURCE(R_DREAM, 2.0F)), DSL_(),
+REGISTER(dreamwake, skill::DREAM_WAKE, REQUIRE(RESOURCE(R_DREAM, 1.5F)), DSL_(),
          DSL(write_callback<[](community &player, community &enemy) {
              community restored{&enemy};
              community opponent{&restored};
@@ -71,15 +71,15 @@ REGISTER(dreamwake, skill::DREAM_WAKE, REQUIRE(RESOURCE(R_DREAM, 2.0F)), DSL_(),
                  judge(restored, opponent);
              }
              auto &resource = restored.focus_.resource_;
-             resource.use(R_DREAM, std::min(2.0F, resource.query(R_DREAM)));
+             resource.use(R_DREAM, std::min(1.5F, resource.query(R_DREAM)));
              restored.current_skill_ = player.current_skill_;
              restored.history_ = std::move(player.history_);
              player = std::move(restored);
          },
                             {}, callback_stage::BEFORE_END>(player)))
 
-REGISTER(illusion, skill::ILLUSION, REQUIRE(RESOURCE(R_DREAM, 1.0F)),
-         DSL(use_resource<1.0F, R_DREAM>(player)),
+REGISTER(illusion, skill::ILLUSION, REQUIRE(RESOURCE(R_DREAM, 1.5F)),
+         DSL(use_resource<1.5F, R_DREAM>(player)),
          DSL(write_recovery<5>(player)))
 
 namespace {
@@ -95,9 +95,9 @@ void update_nightmare(community &player, defense_entity &defense) {
 
 } // namespace
 
-REGISTER(nightmare, skill::NIGHTMARE, REQUIRE(RESOURCE(R_DREAM, 1.0F) && HP(5)),
+REGISTER(nightmare, skill::NIGHTMARE, REQUIRE(RESOURCE(R_DREAM, 1.0F) && HP(4)),
          DSL(use_resource<1.0F, R_DREAM>(player);
-             use_resource<5.0F, R_HP>(player)),
+             use_resource<4.0F, R_HP>(player)),
          DSL(write_defense<{.type_ = defense_type::PHYSICAL_IMMUNITY,
                             .power_ = 1,
                             .defender_ = physical_immunity}>(player);

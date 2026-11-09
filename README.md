@@ -9,7 +9,7 @@ C++20 规则引擎、原生 Python 绑定和 Master 神经网络自对弈训练�
 - `python/src/master/models/`：网络定义与 checkpoint 加载。
 - `python/src/master/train/`：自对弈、课程、搜索和 replay。
 - `python/src/master/play.py`：本地人机对战与赛后复盘。
-- `models/blacksmith-master/`：本地 Master 权重，默认使用 `master-professions-final.pt`。
+- `models/`：本地 Master 权重；默认从 `models/blacksmith-master/master-full.pt` 加载。
 - `out/build/native/`：本地 C++ 构建产物。
 - `tests/`、`python/tests/`：规则、训练和 play 的回归测试。
 
@@ -82,7 +82,10 @@ Windows 运行 `build.cmd`，Linux 运行 `bash build.sh`。
 ```powershell
 .\play.cmd
 .\play.cmd --starting-iron 0 --search-depth 3 --width 24 --leaf-width 4
+.\play.cmd --checkpoint models/blacksmith-master/master-base.pt --specialist-checkpoint models/blacksmith-master/master-full.pt
 ```
+
+默认加载完整模型 `models/blacksmith-master/master-full.pt`；也可指定底座并通过 `--specialist-checkpoint` 合并职业专家。
 
 开局选择玩家的初始 iron；Master 始终从 0 开始。输入技能及参数，例如 `iron 0` 或 `association 0 magicattack 3`；`resign` 认输，`q` 退出。对局结束后可进入复盘，查看搜索推荐或从指定位置试玩。
 

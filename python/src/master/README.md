@@ -99,8 +99,15 @@ GPU 可指定 `--device cuda --precision bf16`；softmax、收益矩阵及损失
 .\play.cmd --starting-iron 0 --search-depth 3 --width 24 --leaf-width 4 --search-nodes 200000
 ```
 
-每次运行只玩一局，默认加载 `models/blacksmith-master/master-professions-final.pt`。
+每次运行只玩一局，默认加载 `models/blacksmith-master/master-full.pt`（底座加 7 个职业专家）。
 `--checkpoint PATH` 固定权重；`--checkpoint-dir PATH` 指定随机池；`--seed` 可复现抽样。
+`--specialist-checkpoint PATH` 会把该 checkpoint 中已启用的职业专家合并到底座上；两个 checkpoint 的底座权重必须一致。例如，显式从底座载入完整专用模型：
+
+```powershell
+.\play.cmd --checkpoint models/blacksmith-master/master-base.pt --specialist-checkpoint models/blacksmith-master/master-full.pt
+```
+
+也可用 `--checkpoint PATH --specialist-checkpoint PATH` 显式指定底座与专家权重。直接传入完整的专用模型 checkpoint 仍会按 checkpoint 内已启用的专家加载。
 开局模式输入非负整数 `n`，玩家初始 iron 为 `n / 2`；回车默认为 0，Master 始终为 0。例如 `5` 表示玩家有 2.5 iron。
 
 输入 `skill param`，如 `magicattack 3`；幻影书也可输入 `association 0 magicattack 3`。

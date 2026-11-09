@@ -12,7 +12,7 @@ from blacksmith import master as engine
 from .agent import Agent
 
 DEFAULT_CHECKPOINT_DIR = Path(__file__).resolve().parents[3] / 'models' / 'blacksmith-master'
-DEFAULT_CHECKPOINT = DEFAULT_CHECKPOINT_DIR / 'master-professions-final.pt'
+DEFAULT_CHECKPOINT = DEFAULT_CHECKPOINT_DIR / 'master-full.pt'
 
 def parse_action(text: str) -> int:
     return engine.parse_action(text)
@@ -253,10 +253,13 @@ def run(args: argparse.Namespace) -> None:
     arena = record.state_at(0, args.threads)
     path, seed = pool.next()
     # 一局只选一次权重，后续复盘/试玩始终使用同一个 Agent。
-    print(f'\nGame start | Model: {path.name} | Player: {iron:g} iron | Master: 0 iron')
+    model_label = (f'{path.name} + {Path(args.specialist_checkpoint).name}'
+                   if args.specialist_checkpoint else path.name)
+    print(f'\nGame start | Model: {model_label} | Player: {iron:g} iron | Master: 0 iron')
     print('Enter skill name + parameter; omitted parameter means 0.')
     agent = Agent(path, args.device, seed, args.width, args.leaf_width,
-                  args.regret_iterations, args.search_depth, args.search_nodes, args.search_batch)
+                  args.regret_iterations, args.search_depth, args.search_nodes, args.search_batch,
+                  specialist_checkpoint=args.specialist_checkpoint)
     while True:
         command, actions, outcome = play_round(arena, agent, record.human_seat)
         if command == 'quit':
@@ -283,8 +286,10 @@ def run(args: argparse.Namespace) -> None:
 
 def configure(parser: argparse.ArgumentParser) -> None:
     checkpoints = parser.add_mutually_exclusive_group()
-    checkpoints.add_argument("--checkpoint", help="Use a fixed model (default: master-professions-final.pt)")
+    checkpoints.add_argument("--checkpoint", help="Use a fixed base/model checkpoint (default: master-full.pt)")
     checkpoints.add_argument("--checkpoint-dir", help="Randomly choose a .pt file from this directory each game")
+    parser.add_argument("--specialist-checkpoint",
+                        help="Merge enabled profession experts from this checkpoint over the base checkpoint")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--seed", type=int, default=None, help="Optional reproducible action and model sampling")
     parser.add_argument('--starting-iron', type=float, choices=(0.0, 0.5, 1.0),

@@ -1,6 +1,7 @@
-# Blacksmith核心规则手册 v1.3
+# Blacksmith核心规则手册 v1.4
 
-> 核对最新实现、技能数值或职业细节，请以 `src/blacksmith-core` 下实际代码为准。Mod 示例职业以 `src/blacksmith-core/src/skill-system/` 下实际代码为准。
+> 平衡性快照：2026-11-09。数值记录当前训练构建实际使用的职业规则；每次职业平衡调整都必须同步更新本手册。迭代只修改职业内部技能，根节点保持不变。
+> 本手册只记录当前启用的职业和技能。
 
 ---
 
@@ -72,7 +73,7 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 
 | 职业 | 成本 | 效果 |
 |:---|:---|:---|
-| Cannon | 4 Iron | 获得Cannon特性 +3 DEF |
+| Cannon | 4 Iron | 获得Cannon特性 +3 RealReduction |
 | Driver | 3 Iron | 获得Driver特性 |
 | Warlock(法杖) | 1 Iron | 获得Warlock特性 |
 | BloodSigil | 7 Iron | +4 HP, +4 Max HP，获得BloodSigil特性。禁止使用Stick/Drill/Slash |
@@ -91,30 +92,31 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| Strike | 1 Iron | 4 ATK |
-| DoubleStrike | 2 Iron | 8 ATK |
-| TripleStrike | 3 Iron | 11 ATK；结算后返还 0.5 Iron；下次Cannon攻击 +1 伤（消耗后失效，可叠加） |
-| CannonBarrel | 0 | 1 ATK + 2 DEF |
-| APShell | 1 Iron | 2 ATK。造成伤害则打断对手本回合"Iron"或"Magic"。对非真实防御时伤害临时 ×3 穿透，离开后 ÷3（向上取整）还原 |
+| Strike | 1 Iron | 3 ATK |
+| DoubleStrike | 2 Iron | 7 ATK |
+| TripleStrike | 3 Iron | 11 ATK；下次Cannon攻击 +1 伤（消耗后失效，可叠加）；不返还 Iron，不回复 HP |
+| CannonBarrier | 0 | 1 ATK + 2 CommonReduction |
+| APShell | 1 Iron | 2 ATK。造成伤害则打断对手本回合 Iron 或 Magic。对非真实防御时伤害临时 ×3 穿透，离开后 ÷3（向上取整）还原 |
 
 #### Driver
-**被动 - TimeShield：** 每回合自动产出 1 + 2n RDEF（n = 当前 Time 数，上限 5 RDEF）。
+**被动：** 每回合自动产出 `1 + 2 × 当前 Time 数` 点 RealReduction，无上限。
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| SpaceImpact(n) | n Space | 12n ATK |
-| Space2Time | 1 Space | 1 Time + 3 RDEF；下次SpaceImpact +1 伤（消耗后失效，可叠加） |
-| Time2Space | 1 Time | 1 Space + 3 RDEF；下次SpaceImpact +1 伤（消耗后失效，可叠加） |
-| SpaceBarrier(n) | n Iron | -0.5n² + 5.5n RDEF (n ≤ 5) |
+| SpaceAttack(n) | n Space（n>0） | `12n + 已储存标记数` ATK |
+| Space2Time | 1 Space | 获得 1 Time、回复 1 HP、获得 3 RealReduction，并使下次 SpaceAttack +1 伤（可叠加） |
+| Time2Space | 1 Time | 获得 1 Space、回复 1 HP、获得 3 RealReduction，并使下次 SpaceAttack +1 伤（可叠加） |
+| SpaceBarrier(n) | n Iron（1≤n≤5） | 获得 `5.5n - 0.5n²` RealReduction |
 
 #### Warlock
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
 | Magic | 1 Iron | 1 Magic |
-| MagicAttack(n) | n Magic | 每回合 2n MATK，悬挂于攻击预备区，持续 3 回合 |
+| MagicAttack(n) | n Magic（n>0） | 第 1 段 `2n - 1` Magical ATK，之后两回合各 2n Magical ATK |
+| MagicShield(n) | n Magic（n>0） | 连续 3 回合各获得 `3n - 1` RealReduction |
 | Silence | 0 | 对手本回合时空获取无效 |
-| Sacrifice | 1 HP + 1 Max HP | 7 RDEF + 2 Iron |
+| Sacrifice | 1 Max HP | 7 RealReduction + 1.5 Iron |
 
 **二级装备：**
 
@@ -127,23 +129,22 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| BloodBlade | 4 HP | 6 ATK，造成伤害 75% 吸血 |
-| BloodLust | 2 HP | 下次攻击伤害 +50%（向上取整） |
-| Recovery | 0 | 回复 2 HP。前提：本回合结算前未受攻击伤害 |
-| BloodShield | 1 HP | DEF = 当前 HP × 40%（向上取整） |
-| BloodRage | 1 HP | 5 ATK（仅 HP ≤ 5 可用），造成伤害 150% 吸血 |
+| BloodBlade | 4 HP | 6 ATK，造成伤害后按 100% 吸血；BloodSigil标记使后续攻击威力乘以 1.6 |
+| BloodLust | 2 HP | 下次BloodSigil攻击威力乘以 1.6 |
+| Recovery | 0 | 回复 2 HP |
+| BloodRage | 1 HP | 5 ATK（当前 HP 为 2–5 时可用），造成伤害后按 150% 吸血；BloodSigil标记使攻击威力乘以 1.6 |
 
 #### Lancer
 **特性 - 纹章系统：** 技能造成伤害后获得特定纹章，下次攻击消耗并附加效果。
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| SkyStrike | 1 Iron | 3 ATK + 打断。命中获【火纹】：下次攻击首段 +2 |
-| DragonTooth | 1 Iron | 3 ATK + 3 DEF。命中获【冰纹】：下次攻击获 +2 AMR |
-| TyrantDestruction | 1 Iron | 3 ATK + 两倍穿甲。命中获【光纹】：下次攻击获 +2 HP |
-| TripleStab | 1 Iron | 2+2+1 ATK（三段同回合）。命中获【暗纹】：下次攻击附两回合 1 RATK |
-| RisingDragon | 4 Iron | 10 MATK |
-| Charge | 4 Iron | 下次RisingDragon +4 MATK。<br>减耗：下回合RisingDragon/Charge成本 0 Iron。<br>自动反击：本回合受攻击则视为Charge完成，立刻触发 0 成本RisingDragon。<br>最多连续Charge两次 |
+| SkyStrike | 1 Iron | 3 ATK并打断。命中后储存标记，使下次Lancer攻击 +2 伤 |
+| DragonTooth | 1 Iron | 3 ATK + 3 RealReduction。命中后储存标记，使下次攻击获得 2 点永久 CommonArmor |
+| TyrantDestruction | 1 Iron | 3 ATK、两倍穿甲。命中后储存标记，使下次攻击回复 2 HP |
+| TripleStab | 1 Iron | 同回合造成 2+2+1 ATK。命中储存标记；下次Lancer攻击消耗标记并支付 1 Max HP，额外附加两段各 1 Real伤害（间隔一回合） |
+| RisingDragon | 0 | 10 Magical ATK + 每层Charge标记额外 4 Magical ATK |
+| Charge | 首次 4 Iron，之后连续蓄力不耗 Iron | 最多蓄力两层。之后RisingDragon按层数增加伤害；蓄力回合若受到攻击，会立即触发反击RisingDragon |
 
 #### PhantomBook
 
@@ -154,11 +155,11 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
 | Fantasia | 0.5 Iron | 1 Dream |
-| Association | 2 Dream | 复制对手一个可用技能并施放（消耗由自己支付）。不可复制转职/装备技能/Association自身 |
-| Hallucination | 2 Dream | 对手本回合及之后所有攻击延迟 +1 回合（无限持续预处理钩子） |
-| DreamWake | 最高 2 Dream | 要求当前至少有 2 Dream；在回合末、时钟推进后（`BEFORE_END`），根据双方动作历史，从普通开局重建三回合前的自身，扣除资源后最多 2 Dream，保留当前完整动作历史并替换自身。本回合已结算的自身变化会被恢复后的状态覆盖；恢复状态中的待执行动作从下一回合继续结算 |
-| Illusion | 1 Dream | 回复 5 HP |
-| Nightmare（装备） | 1 Dream + 5 HP | 装备当回合物免 + 永久 6 Nightmare装甲。装甲破裂时恢复Nightmare入口技能并移除子职业包 |
+| Association | 1.5 Dream | 复制并施放对手一个当前可用、自己当前不可用的技能。不可复制Association自身；复制技能通过无成本声明映射施放，不支付其原技能资源成本 |
+| Hallucination | 1.5 Dream | 对手本回合及之后所有攻击延迟 +1 回合（无限持续预处理钩子） |
+| DreamWake | 1.5 Dream | 要求当前至少有 1.5 Dream；在回合末、时钟推进后（`BEFORE_END`），根据双方动作历史，从普通开局重建三回合前的自身，扣除 1.5 Dream，保留当前完整动作历史并替换自身。本回合已结算的自身变化会被恢复后的状态覆盖；恢复状态中的待执行动作从下一回合继续结算 |
+| Illusion | 1.5 Dream | 回复 5 HP |
+| Nightmare（装备） | 1 Dream + 4 HP | 装备当回合物理免疫 + 6点永久Nightmare装甲。装甲破裂时恢复Nightmare入口技能并移除子职业包 |
 
 **二级装备/子职业 - Nightmare：**
 
@@ -168,10 +169,10 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| DreamDive | 1 Dream | 2 RATK + 5 DEF + 回复 1 HP + 1 Spirit + 魔法免疫 |
-| Materialization | 1 Dream + 2 Spirit | 4 ATK + 4 RATK + 4 DEF |
-| Haunt | 1 Spirit | 2 MATK（本回合）+ 2 MATK（下回合）+ 1 MATK（第三回合） |
-| Channeling | 1 Spirit | 回复 3 HP + 2 DEF + 魔法免疫 |
+| DreamDive | 1 Dream | 2 Real ATK + 5 CommonReduction + 回复 1 HP + 1 Spirit + 魔法免疫 |
+| Materialization | 1 Dream + 1 Spirit | 4 Physical ATK + 4 Real ATK + 4 CommonReduction |
+| Haunt | 1 Spirit | 本回合及之后两回合各造成 2 Magical ATK |
+| Channeling | 1 Spirit | 回复 3 HP + 2 CommonReduction + 魔法免疫；若Nightmare装甲仍在，额外增加 2 点装甲 |
 
 #### Cauldron
 
@@ -212,9 +213,9 @@ ThornReduction 吸收物理攻击时反弹 50%（向上取整）为 Magical 伤�
 
 | 技能 | 成本 | 效果 |
 |:---|:---|:---|
-| CraftBolt | 1 Iron | 3 Bolt |
-| BoltRain(n) | n Bolt | n ATK |
+| CraftBolt(n) | n Iron | 获得 3n Bolt |
+| BoltRain(n) | 3n Bolt（n≥0） | 无标记时造成 `3n + 1` Physical ATK 并添加持续标记；已有标记时清除标记并造成 `3n` Physical ATK。标记按每次BoltRain交替生效；n=0也会交替标记并结算攻击 |
 | Aim | 0 | 下次Critical强化：物理伤害归零，真实伤害从 1 提升至 2 |
-| Critical | 1 Bolt | 未Aim：1 ATK + 1 RATK。Aim后：0 ATK + 2 RATK。Aim状态消费后复位 |
-| Block(n) | 0.5n Bolt | (4.5n - 0.5n²) DEF（n=1~4，Shield公式抛物线）。Bolt 不足不可用 |
-| MarkShot | 1 Bolt + 1 Iron | 1 ATK。下回合即时攻击命中被标记的对手身体时伤害翻倍 |
+| Critical | 1 Bolt | 未Aim：1 Physical ATK + 1 Real ATK；Aim后：2 Real ATK。使用时获得 1 CommonReduction，Aim状态消费后复位 |
+| Block(n) | 0.5n Bolt | 获得 `n(9-n)/2` CommonReduction（n=1~4）。Bolt不足不可用 |
+| MarkShot | 1 Bolt + 1 Iron | 1 Physical ATK。下回合攻击命中对手身体时身体伤害翻倍 |
